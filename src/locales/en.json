@@ -91,7 +91,8 @@
     "todos": "Todos",
     "members": "Members",
     "billing": "Billing",
-    "settings": "Settings"
+    "settings": "Settings",
+    "products": "Products"
   },
   "Dashboard": {
     "meta_title": "SaaS Template Dashboard",
@@ -162,5 +163,40 @@
     "message_title": "Message",
     "message_description": "Enter a detailed message for your todo.",
     "submit_button": "Submit"
+  },
+  "Products": {
+    "title": "Products Management",
+    "description": "Manage your product catalog",
+    "id": "ID",
+    "product_code": "Product Code",
+    "product_name": "Product Name",
+    "product_category": "Category",
+    "product_abbreviation": "Abbreviation",
+    "product_notes": "Notes",
+    "created_at": "Created At",
+    "updated_at": "Updated At",
+    "create_product": "Create New Product",
+    "edit_product": "Edit Product",
+    "delete_confirmation_title": "Delete Product",
+    "delete_confirmation_single": "Are you sure you want to delete this product? This action cannot be undone.",
+    "delete_confirmation_multiple": "Are you sure you want to delete these {count} products? This action cannot be undone.",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving...",
+    "delete": "Delete",
+    "deleting": "Deleting...",
+    "fetch_error": "Failed to load products",
+    "create_error": "Failed to create product",
+    "update_error": "Failed to update product",
+    "delete_error": "Failed to delete product",
+    "create_success": "Product created successfully",
+    "update_success": "Product updated successfully",
+    "delete_success_single": "Product deleted successfully",
+    "delete_success_multiple": "{count} products deleted successfully",
+    "enter_product_code": "Enter product code",
+    "enter_product_name": "Enter product name",
+    "enter_product_category": "Enter product category",
+    "enter_product_abbreviation": "Enter product abbreviation",
+    "enter_product_notes": "Enter product notes"
   }
 }

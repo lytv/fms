@@ -28,6 +28,11 @@ export default function DashboardLayout(props: { children: React.ReactNode }) {
                 href: '/dashboard',
                 label: t('home'),
               },
+              // New Products management link
+              {
+                href: '/dashboard/products',
+                label: t('products'),
+              },
               // PRO: Link to the /dashboard/todos page
               {
                 href: '/dashboard/organization-profile/organization-members',

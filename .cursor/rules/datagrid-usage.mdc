@@ -1,0 +1,468 @@
+# DataGrid Usage Guidelines
+
+## Overview
+This rule provides standards for implementing data grids using our custom DataGrid component (which wraps AG Grid) following the patterns established in ExcelDataGrid.
+
+## Core Components
+
+### 1. DataGrid Component
+The main wrapper component around AG Grid with additional functionality:
+```typescript
+import { DataGrid } from '@/components/data-grid/DataGrid';
+
+<DataGrid
+  initialData={data}
+  columnDefs={columnDefs}
+  className="ag-theme-alpine min-h-[500px] w-full"
+  onDataChange={handleDataChange}
+  exportFileName="export-filename.xlsx"
+  showToolbar={false}
+  defaultColDef={{
+    flex: 1,
+    minWidth: 150,
+    editable: true,
+    sortable: true,
+    filter: true,
+    resizable: true,
+  }}
+  onColumnVisibilityChange={handleColumnVisibilityChange}
+/>
+```
+
+### 2. GridToolbar Component
+Provides standard toolbar actions for the grid:
+```typescript
+import { GridToolbar } from '@/components/data-grid/GridToolbar';
+
+<GridToolbar
+  onSearch={handleSearch}
+  onExport={handleExportToExcel}
+  onExportToSql={handleExportToSql}
+  onImport={handleImportClick}
+  onClear={handleClearData}
+  onRefresh={handleRefreshData}
+  hasData={Array.isArray(rowData) && rowData.length > 0}
+  searchPlaceholder="Search data..."
+/>
+```
+
+### 3. ExcelImport Component
+Handles importing Excel data:
+```typescript
+import { ExcelImport } from '@/components/data-grid/ExcelImport';
+
+<ExcelImport
+  onDataImported={handleDataImported}
+  columnVisibility={columnVisibility}
+  invisibleColumns={invisibleColumnsArray}
+  buttonText="Import from Excel"
+  skipZeroWidthColumns={true}
+  ref={fileInputRef}
+/>
+```
+
+## Column Configuration
+
+### Column Definitions
+Define columns with appropriate properties:
+```typescript
+const columnDefs: ColDef[] = [
+  {
+    field: 'columnName',
+    headerName: 'Display Name',
+    flex: 1,
+    minWidth: 100,
+    editable: true,
+    sortable: true,
+    filter: 'agTextColumnFilter',
+    hide: false, // Control visibility
+  }
+];
+```
+
+### Column Visibility Management
+Use state to manage column visibility:
+```typescript
+// Define visibility state
+const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({});
+
+// Update visibility when changed by grid
+const handleColumnVisibilityChange = (newVisibility: Record<string, boolean>) => {
+  setColumnVisibility(newVisibility);
+  localStorage.setItem('column_visibility_key', JSON.stringify(newVisibility));
+};
+
+// Apply visibility to columns
+const visibleColumnDefs = columnDefs.map(col => ({
+  ...col,
+  hide: columnVisibility[col.field as string] === false
+}));
+```
+
+### Default Column Configuration
+Use defaultColDef for shared column properties:
+```typescript
+const defaultColDef = {
+  flex: 1,
+  minWidth: 150,
+  editable: true,
+  sortable: true,
+  filter: true,
+  resizable: true,
+};
+```
+
+## Data Management
+
+### State Management
+Maintain separate states for original and filtered data:
+```typescript
+const [rowData, setRowData] = useState<Record<string, any>[]>([]);
+const [filteredRowData, setFilteredRowData] = useState<Record<string, any>[]>([]);
+```
+
+### Persistence
+Save data and configuration to localStorage:
+```typescript
+// Save data after changes
+useEffect(() => {
+  localStorage.setItem('data_key', JSON.stringify(rowData));
+}, [rowData]);
+
+// Load data on component mount
+useEffect(() => {
+  const savedData = localStorage.getItem('data_key');
+  if (savedData) {
+    try {
+      const parsedData = JSON.parse(savedData);
+      setRowData(parsedData);
+      setFilteredRowData(parsedData);
+    } catch (err) {
+      console.error('Error loading saved data:', err);
+    }
+  }
+}, []);
+```
+
+### Data Change Handling
+```typescript
+const handleDataChange = (data: Record<string, any>[]) => {
+  setRowData(data);
+  
+  // Only update filtered data if not currently filtering
+  if (filteredRowData.length === rowData.length) {
+    setFilteredRowData(data);
+  }
+  
+  localStorage.setItem('data_key', JSON.stringify(data));
+};
+```
+
+## Filtering and Search
+
+### Implement Search
+```typescript
+const handleSearch = (searchTerm: string) => {
+  if (!searchTerm.trim()) {
+    setFilteredRowData(rowData);
+    return;
+  }
+
+  const term = searchTerm.toLowerCase().trim();
+  const filtered = rowData.filter((row) => {
+    return Object.values(row).some((value) => {
+      if (value === null || value === undefined) {
+        return false;
+      }
+      return String(value).toLowerCase().includes(term);
+    });
+  });
+
+  setFilteredRowData(filtered);
+};
+```
+
+### Filter Management
+For AG Grid's built-in filtering:
+```typescript
+// Configure filter in column definitions
+{
+  field: 'name',
+  filter: 'agTextColumnFilter', // Options: agTextColumnFilter, agNumberColumnFilter, agDateColumnFilter
+  filterParams: {
+    // Filter-specific parameters
+    filterOptions: ['contains', 'equals', 'startsWith', 'endsWith'],
+    defaultOption: 'contains'
+  }
+}
+```
+
+## Advanced Grid Configuration
+
+### Additional Grid Options
+```typescript
+<DataGrid
+  // ... other props
+  gridOptions={{
+    domLayout: 'normal',
+    rowBuffer: 100,
+    suppressNoRowsOverlay: false,
+    onGridReady: (params) => {
+      // Grid initialization logic
+      params.api.sizeColumnsToFit();
+    },
+    // Handle row/cell clicked events
+    onCellClicked: (event) => {
+      // Cell click handling
+    },
+    // Row styling
+    getRowStyle: (params) => {
+      // Conditional styling
+      return { background: params.data.status === 'active' ? '#f0f8ff' : '' };
+    }
+  }}
+/>
+```
+
+### Grid Layout and Styling
+Always apply appropriate styling:
+```typescript
+<DataGrid
+  className="ag-theme-alpine min-h-[500px] w-full"
+  // Alternate themes: ag-theme-balham, ag-theme-material
+/>
+```
+
+## Best Practices
+
+### 1. Data Handling
+- ✅ Always keep original and filtered data separate
+- ✅ Use callbacks for data changes to maintain state
+- ✅ Implement proper error handling for data operations
+
+### 2. Performance
+- ✅ Use rowBuffer for large datasets
+- ✅ Implement pagination for very large datasets
+- ✅ Use appropriate column filters based on data type
+- ✅ Avoid unnecessary re-renders by using memo and callbacks
+
+### 3. User Experience
+- ✅ Provide clear loading indicators
+- ✅ Add appropriate tooltips for complex functionality
+- ✅ Implement appropriate keyboard navigation
+- ✅ Show row counts and filter status
+
+### 4. Column Configuration
+- ✅ Use appropriate column types for data
+- ✅ Set reasonable min/max widths for columns
+- ✅ Use flex for responsive layouts
+- ✅ Configure sorting and filtering appropriately
+
+## Implementation Example
+
+```tsx
+// Complete example of DataGrid implementation with all features
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { DataGrid } from '@/components/data-grid/DataGrid';
+import { GridToolbar } from '@/components/data-grid/GridToolbar';
+import { ExcelImport } from '@/components/data-grid/ExcelImport';
+import type { ColDef } from 'ag-grid-community';
+
+// Keys for localStorage
+const DATA_KEY = 'grid_data';
+const COLUMNS_KEY = 'grid_columns';
+const VISIBILITY_KEY = 'grid_visibility';
+
+export function MyDataGrid() {
+  // State management
+  const [rowData, setRowData] = useState<Record<string, any>[]>([]);
+  const [filteredRowData, setFilteredRowData] = useState<Record<string, any>[]>([]);
+  const [columnDefs, setColumnDefs] = useState<ColDef[]>([]);
+  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load saved data
+  useEffect(() => {
+    const savedData = localStorage.getItem(DATA_KEY);
+    const savedColumns = localStorage.getItem(COLUMNS_KEY);
+    const savedVisibility = localStorage.getItem(VISIBILITY_KEY);
+
+    if (savedData && savedColumns) {
+      try {
+        setRowData(JSON.parse(savedData));
+        setFilteredRowData(JSON.parse(savedData));
+        setColumnDefs(JSON.parse(savedColumns));
+      } catch (err) {
+        console.error('Error loading saved data:', err);
+      }
+    }
+
+    if (savedVisibility) {
+      try {
+        setColumnVisibility(JSON.parse(savedVisibility));
+      } catch (err) {
+        console.error('Error loading column visibility:', err);
+      }
+    }
+  }, []);
+
+  // Handle data changes
+  const handleDataChange = useCallback((data: Record<string, any>[]) => {
+    setRowData(data);
+    
+    // Only update filtered data if not currently filtering
+    if (filteredRowData.length === rowData.length) {
+      setFilteredRowData(data);
+    }
+    
+    localStorage.setItem(DATA_KEY, JSON.stringify(data));
+  }, [rowData.length, filteredRowData.length]);
+
+  // Handle search
+  const handleSearch = useCallback((searchTerm: string) => {
+    if (!searchTerm.trim()) {
+      setFilteredRowData(rowData);
+      return;
+    }
+
+    const term = searchTerm.toLowerCase().trim();
+    const filtered = rowData.filter((row) => {
+      return Object.values(row).some((value) => {
+        if (value === null || value === undefined) return false;
+        return String(value).toLowerCase().includes(term);
+      });
+    });
+
+    setFilteredRowData(filtered);
+  }, [rowData]);
+
+  // Handle column visibility changes
+  const handleColumnVisibilityChange = useCallback((newVisibility: Record<string, boolean>) => {
+    setColumnVisibility(newVisibility);
+    localStorage.setItem(VISIBILITY_KEY, JSON.stringify(newVisibility));
+  }, []);
+
+  // Handle data import
+  const handleDataImported = useCallback((data: Record<string, any>[], importInfo: any) => {
+    setRowData(data);
+    setFilteredRowData(data);
+    
+    // Generate columns from data
+    const cols: ColDef[] = Object.keys(data[0] || {}).map(key => ({
+      field: key,
+      headerName: key,
+      flex: 1,
+      minWidth: 100,
+      editable: true,
+      sortable: true,
+      filter: 'agTextColumnFilter',
+    }));
+    
+    setColumnDefs(cols);
+    
+    localStorage.setItem(DATA_KEY, JSON.stringify(data));
+    localStorage.setItem(COLUMNS_KEY, JSON.stringify(cols));
+  }, []);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <GridToolbar
+        onSearch={handleSearch}
+        onExport={() => {/* Export logic */}}
+        onImport={() => fileInputRef.current?.click()}
+        onClear={() => {
+          setRowData([]);
+          setFilteredRowData([]);
+          setColumnDefs([]);
+          localStorage.removeItem(DATA_KEY);
+          localStorage.removeItem(COLUMNS_KEY);
+        }}
+        onRefresh={() => setFilteredRowData(rowData)}
+        hasData={rowData.length > 0}
+      />
+      
+      <div className="hidden">
+        <ExcelImport
+          onDataImported={handleDataImported}
+          columnVisibility={columnVisibility}
+          ref={fileInputRef}
+        />
+      </div>
+      
+      <DataGrid
+        initialData={filteredRowData.length > 0 ? filteredRowData : rowData}
+        columnDefs={columnDefs}
+        className="ag-theme-alpine min-h-[500px] w-full"
+        onDataChange={handleDataChange}
+        exportFileName="data-export.xlsx"
+        showToolbar={false}
+        defaultColDef={{
+          flex: 1,
+          minWidth: 150,
+          editable: true,
+          sortable: true,
+          filter: true,
+          resizable: true,
+        }}
+        onColumnVisibilityChange={handleColumnVisibilityChange}
+        gridOptions={{
+          domLayout: 'normal',
+          rowBuffer: 100,
+          onGridReady: (params) => {
+            params.api.sizeColumnsToFit();
+          },
+        }}
+      />
+      
+      {rowData.length > 0 && (
+        <div className="text-sm text-gray-600">
+          Showing {filteredRowData.length} of {rowData.length} records
+          {filteredRowData.length !== rowData.length ? ' (filtered)' : ''}
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+## Anti-Patterns to Avoid
+
+### ❌ Bad Practices
+```typescript
+// DON'T: Use the same state for original and filtered data
+const [data, setData] = useState([]);
+// Filter directly modifies the source data
+const filteredData = data.filter(/*...*/);
+
+// DON'T: Ignore column visibility management
+// Instead, always track and persist visibility state
+
+// DON'T: Neglect to handle large datasets properly
+// For large datasets, implement pagination or virtualization
+
+// DON'T: Forget to clean up event listeners
+// Always use proper cleanup in useEffect
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Grid not showing data**
+   - Check if data is actually loaded
+   - Verify column definitions match data properties
+   - Check console for errors
+
+2. **Performance issues with large datasets**
+   - Implement pagination
+   - Use rowBuffer and other performance options
+   - Consider server-side operations for very large datasets
+
+3. **Column visibility not persisting**
+   - Ensure visibility state is properly saved
+   - Verify the state is applied to column definitions
+
+4. **Filters not working properly**
+   - Check filter type matches column data type
+   - Verify filter params configuration
+   - Check for case sensitivity issues

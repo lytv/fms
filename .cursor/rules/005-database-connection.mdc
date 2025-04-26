@@ -1,0 +1,179 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Database Connection Standards with Drizzle ORM
+
+## Context
+- When implementing database connections and queries
+- When creating or modifying database schema
+- When performing database migrations
+- When working with data models and business logic
+
+## Requirements
+
+### 1. Database Configuration
+- Use environment variables for database connection strings:
+  ```
+  DATABASE_URL=postgresql://username:password@localhost:5432/dbname
+  ```
+- Define database schema using Drizzle's schema declaration:
+  ```typescript
+  import { pgTable, text, timestamp, serial } from 'drizzle-orm/pg-core';
+
+  export const userTable = pgTable('user', {
+    id: serial('id').primaryKey(),
+    name: text('name').notNull(),
+    email: text('email').notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  });
+  ```
+
+### 2. Database Connection
+- Create a singleton database connection to prevent multiple connections:
+  ```typescript
+  // src/libs/DB.ts
+  import { drizzle } from 'drizzle-orm/node-postgres';
+  import { Client } from 'pg';
+  import * as schema from '@/models/Schema';
+
+  // Global variable for db connection
+  let drizzleInstance;
+
+  if (!global.db) {
+    const client = new Client({ connectionString: process.env.DATABASE_URL });
+    await client.connect();
+    
+    global.db = drizzle(client, { schema });
+  }
+
+  export const db = global.db;
+  ```
+- Handle different environments (development vs production):
+  ```typescript
+  // Use different connection logic for Next.js build phase
+  if (process.env.NEXT_PHASE !== PHASE_PRODUCTION_BUILD) {
+    // Production DB connection
+  } else {
+    // Development or fallback DB connection
+  }
+  ```
+
+### 3. Migrations
+- Generate migrations using Drizzle Kit:
+  ```
+  npm run db:generate
+  ```
+- Apply migrations during application startup:
+  ```typescript
+  import { migrate } from 'drizzle-orm/node-postgres/migrator';
+  
+  await migrate(db, {
+    migrationsFolder: path.join(process.cwd(), 'migrations'),
+  });
+  ```
+- Store migrations in the `migrations` folder
+
+### 4. Query Patterns
+- Use type-safe queries with Drizzle:
+  ```typescript
+  import { eq } from 'drizzle-orm';
+  import { db } from '@/libs/DB';
+  import { userTable } from '@/models/Schema';
+  
+  // Select query
+  const users = await db.select().from(userTable).where(eq(userTable.id, 1));
+  
+  // Insert query
+  const newUser = await db.insert(userTable).values({
+    name: 'John Doe',
+    email: 'john@example.com',
+  }).returning();
+  ```
+- Use prepared statements for security:
+  ```typescript
+  const result = await db
+    .select()
+    .from(userTable)
+    .where(eq(userTable.email, email))
+    .prepare('get_user_by_email');
+  ```
+
+### 5. Error Handling
+- Implement proper error handling for database operations:
+  ```typescript
+  try {
+    const result = await db.select().from(userTable);
+    return result;
+  } catch (error) {
+    console.error('Database error:', error);
+    throw new Error('Failed to fetch users');
+  }
+  ```
+
+## Examples
+
+### ✅ Good Practices
+```typescript
+// Schema definition
+export const todoSchema = pgTable('todo', {
+  id: serial('id').primaryKey(),
+  ownerId: text('owner_id').notNull(),
+  title: text('title').notNull(),
+  message: text('message').notNull(),
+  updatedAt: timestamp('updated_at')
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Data access
+import { eq } from 'drizzle-orm';
+import { db } from '@/libs/DB';
+import { todoSchema } from '@/models/Schema';
+
+export async function getTodosByOwner(ownerId: string) {
+  try {
+    return await db.select()
+      .from(todoSchema)
+      .where(eq(todoSchema.ownerId, ownerId));
+  } catch (error) {
+    console.error('Failed to get todos:', error);
+    throw new Error('Unable to retrieve todos');
+  }
+}
+```
+
+### ❌ Bad Practices
+```typescript
+// Don't create new connections for each query
+export async function getTodos() {
+  const client = new Client({ connectionString: process.env.DATABASE_URL });
+  await client.connect();
+  const db = drizzle(client);
+  
+  const todos = await db.select().from(todoSchema);
+  await client.end();
+  
+  return todos;
+}
+
+// Don't use string interpolation for queries (SQL injection risk)
+export async function getTodoById(id: number) {
+  const { rows } = await client.query(`SELECT * FROM todo WHERE id = ${id}`);
+  return rows[0];
+}
+```
+
+## Critical Rules
+1. Use a singleton pattern for database connections
+2. Store database credentials in environment variables
+3. Use Drizzle's type-safe query builders
+4. Implement proper error handling for database operations
+5. Generate and apply migrations systematically
+6. Use prepared statements for parameterized queries
+7. Follow PostgreSQL best practices for schema design
+8. Implement proper transaction handling for related operations
+9. Avoid unnecessary connections or connection pooling misuse

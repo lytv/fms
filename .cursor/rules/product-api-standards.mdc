@@ -1,0 +1,615 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Product API Endpoint Standards
+
+## Context
+- When implementing API endpoints for product management
+- When creating, reading, updating, or deleting product data
+- When handling product-related operations via the API
+- When securing product endpoints with Clerk authentication
+
+## Requirements
+
+### 1. API Endpoint Structure
+- Place all product-related API endpoints under `src/app/[locale]/(auth)/api/products/`
+- Follow REST conventions for resource URLs:
+  - List/Create: `GET/POST /api/products`
+  - Get/Update/Delete: `GET/PUT/DELETE /api/products/[id]`
+  - Special operations: `POST /api/products/[id]/[operation]`
+- Use route handlers with appropriate HTTP methods:
+  ```typescript
+  // GET and POST in same file
+  export async function GET(request: NextRequest): Promise<NextResponse> {
+    // Implementation
+  }
+  
+  export async function POST(request: NextRequest): Promise<NextResponse> {
+    // Implementation
+  }
+  ```
+
+### 2. File Organization
+- Main product endpoints: `src/app/[locale]/(auth)/api/products/route.ts`
+- Single product operations: `src/app/[locale]/(auth)/api/products/[id]/route.ts`
+- Special operations: `src/app/[locale]/(auth)/api/products/[id]/[operation]/route.ts`
+- Schema validation: `src/app/[locale]/(auth)/api/products/schemas.ts`
+- Database operations: `src/app/[locale]/(auth)/api/products/db.ts`
+- Utility functions: `src/app/[locale]/(auth)/api/products/utils.ts`
+- Tests should be in `src/app/[locale]/(auth)/api/products/__tests__/`
+
+### 3. Authentication Requirements
+- All product endpoints must be protected with Clerk authentication
+- Use the Clerk middleware for authentication
+- Validate the authenticated user in each route handler:
+  ```typescript
+  import { currentUser } from '@clerk/nextjs';
+  import { NextRequest, NextResponse } from 'next/server';
+
+  export async function GET(request: NextRequest): Promise<NextResponse> {
+    // Get authenticated user
+    const user = await currentUser();
+    
+    // Check if user is authenticated
+    if (!user) {
+      return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    
+    // Continue with endpoint logic
+    // ...
+  }
+  ```
+
+### 4. CRUD Implementation Standards
+
+#### Create (POST /api/products)
+```typescript
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  try {
+    // Authentication
+    const user = await currentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Parse and validate request body
+    const body = await request.json();
+    const validatedData = productSchema.parse(body);
+    
+    // Create product in database
+    const product = await createProduct(validatedData, user.id);
+    
+    // Return success response
+    return NextResponse.json(product, { status: 201 });
+  } catch (error) {
+    // Error handling
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: 'Validation error', details: error.errors }, { status: 400 });
+    }
+    
+    console.error('Error creating product:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+```
+
+#### Read (GET /api/products, GET /api/products/[id])
+```typescript
+// List products
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  try {
+    // Authentication
+    const user = await currentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    // Parse query parameters
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '10');
+    
+    // Get products from database
+    const products = await getProducts(page, limit, user.id);
+    
+    // Return success response
+    return NextResponse.json(products);
+  } catch (error) {
+    console.error('Error getting products:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+// Single product (in [id]/route.ts)
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+): Promise<NextResponse> {
+  try {
+    // Authentication
+    const user = await currentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    // Get product by ID
+    const product = await getProductById(params.id, user.id);
+    
+    // Check if product exists
+    if (!product) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
+    
+    // Return success response
+    return NextResponse.json(product);
+  } catch (error) {
+    console.error('Error getting product:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+```
+
+#### Update (PUT /api/products/[id])
+```typescript
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+): Promise<NextResponse> {
+  try {
+    // Authentication
+    const user = await currentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    // Parse and validate request body
+    const body = await request.json();
+    const validatedData = productUpdateSchema.parse(body);
+    
+    // Check if product exists and user has access
+    const existingProduct = await getProductById(params.id, user.id);
+    if (!existingProduct) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
+    
+    // Update product in database
+    const updatedProduct = await updateProduct(params.id, validatedData, user.id);
+    
+    // Return success response
+    return NextResponse.json(updatedProduct);
+  } catch (error) {
+    // Error handling
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: 'Validation error', details: error.errors }, { status: 400 });
+    }
+    
+    console.error('Error updating product:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+```
+
+#### Delete (DELETE /api/products/[id])
+```typescript
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+): Promise<NextResponse> {
+  try {
+    // Authentication
+    const user = await currentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    // Check if product exists and user has access
+    const existingProduct = await getProductById(params.id, user.id);
+    if (!existingProduct) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
+    
+    // Delete product from database
+    await deleteProduct(params.id, user.id);
+    
+    // Return success response
+    return NextResponse.json({ success: true }, { status: 200 });
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+```
+
+### 5. Schema Validation
+- Use Zod for request validation
+- Define schemas in a separate file (`schemas.ts`):
+  ```typescript
+  import { z } from 'zod';
+
+  export const productSchema = z.object({
+    name: z.string().min(1).max(100),
+    description: z.string().optional(),
+    price: z.number().positive(),
+    category: z.string().optional(),
+    stock: z.number().int().nonnegative(),
+    attributes: z.array(
+      z.object({
+        name: z.string(),
+        value: z.string()
+      })
+    ).optional(),
+    // Additional fields as needed
+  });
+
+  export const productUpdateSchema = productSchema.partial();
+
+  export type Product = z.infer<typeof productSchema>;
+  export type ProductUpdate = z.infer<typeof productUpdateSchema>;
+  ```
+
+### 6. Error Handling Standards
+- Use consistent error response format
+- Implement proper status codes
+- Log errors with enough context
+- Handle common error types (validation, not found, unauthorized)
+- Include error details when appropriate:
+  ```typescript
+  try {
+    // Logic that might throw
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: 'Validation error', details: error.errors }, { status: 400 });
+    }
+    
+    if (error instanceof DatabaseError) {
+      console.error('Database error:', error);
+      return NextResponse.json({ error: 'Database operation failed' }, { status: 500 });
+    }
+    
+    console.error('Unexpected error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+  ```
+
+### 7. Testing Requirements
+- Write tests for all API endpoints
+- Test both success and error cases
+- Mock database operations
+- Verify authentication requirements
+- Test validation logic
+- Always mock Clerk authentication in tests:
+  ```typescript
+  // In your test file
+  import { nextAuthMock } from '@/utils/test-utils';
+  import { jest } from '@jest/globals';
+
+  // Mock authentication
+  jest.mock('@clerk/nextjs', () => ({
+    currentUser: jest.fn().mockResolvedValue({
+      id: 'user_123',
+      email: 'test@example.com'
+    })
+  }));
+  ```
+
+## Common Problems and Solutions
+
+### 1. Issue: API Route Not Found
+**Problem:** API endpoint returns 404 not found despite being in the correct location.
+
+**Solutions:**
+- Ensure the route file is named `route.ts` not `routes.ts` or other variations
+- Check that the endpoint path follows Next.js App Router conventions
+- Verify the middleware is not incorrectly blocking the request
+- Check for proper export of HTTP method handlers (GET, POST, etc.)
+
+```typescript
+// Correct:
+export async function GET(request: NextRequest) { ... }
+
+// Incorrect:
+async function GET(request: NextRequest) { ... } // Missing export
+```
+
+### 2. Issue: Authentication Not Working
+**Problem:** Authentication checks fail or behave inconsistently.
+
+**Solutions:**
+- Add Clerk middleware debug logs to troubleshoot
+- Ensure the API route is within the auth group `(auth)`
+- Check for proper await on authentication calls
+- Verify the authentication error response is formatted correctly
+
+```typescript
+// Correct:
+const user = await currentUser();
+
+// Incorrect:
+const user = currentUser(); // Missing await
+```
+
+### 3. Issue: Database Connection Problems
+**Problem:** Database operations fail with connection errors.
+
+**Solutions:**
+- Implement connection pooling to avoid exhausting connections
+- Add proper error handling for database operations
+- Use a connection manager to reuse connections
+- Ensure environment variables for database connection are correctly set
+
+```typescript
+// Connection pooling example with drizzle-orm
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
+
+// Create a singleton connection pool
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: 20, // Maximum number of clients
+  idleTimeoutMillis: 30000
+});
+
+export const db = drizzle(pool);
+```
+
+### 4. Issue: Request Validation Errors
+**Problem:** Request validation fails with unclear error messages.
+
+**Solutions:**
+- Implement custom error messages in Zod schemas
+- Return detailed validation errors to the client
+- Log validation errors for debugging
+- Use proper types derived from Zod schemas
+
+```typescript
+// Improved validation with custom error messages
+export const productSchema = z.object({
+  name: z.string().min(1, { message: "Name cannot be empty" }).max(100, { message: "Name is too long (max 100 chars)" }),
+  price: z.number({ invalid_type_error: "Price must be a number" }).positive({ message: "Price must be positive" })
+});
+```
+
+### 5. Issue: Inconsistent Response Formats
+**Problem:** API responses have inconsistent formats.
+
+**Solutions:**
+- Create a response utility function for consistent formats
+- Define standard response interfaces
+- Use TypeScript to enforce response formats
+- Document all response formats
+
+```typescript
+// Response utility function
+function apiResponse<T>(data: T, status = 200) {
+  return NextResponse.json(data, { status });
+}
+
+function apiError(message: string, status = 400, details?: any) {
+  return NextResponse.json({ error: message, details }, { status });
+}
+
+// Usage
+return apiResponse(product, 201);
+return apiError('Validation failed', 400, error.errors);
+```
+
+### 6. Issue: Error Handling Gaps
+**Problem:** Some errors are not properly caught or handled.
+
+**Solutions:**
+- Implement a global error handler
+- Add try/catch blocks to all async operations
+- Add specific error types for different scenarios
+- Log errors with context information
+
+```typescript
+// Custom error class
+export class ProductError extends Error {
+  constructor(
+    message: string,
+    public status: number = 500,
+    public details?: any
+  ) {
+    super(message);
+    this.name = 'ProductError';
+  }
+}
+
+// Usage
+try {
+  // Operation that might fail
+} catch (error) {
+  if (error instanceof ProductError) {
+    return NextResponse.json(
+      { error: error.message, details: error.details },
+      { status: error.status }
+    );
+  }
+  // Handle other errors
+}
+```
+
+### 7. Issue: Performance Problems
+**Problem:** API endpoints are slow to respond.
+
+**Solutions:**
+- Implement caching for read operations
+- Optimize database queries
+- Add database indexes for frequently queried fields
+- Use query parameters to limit result sets
+
+```typescript
+// Caching example
+import { unstable_cache } from 'next/cache';
+
+// Cache function with a 1-minute TTL
+const getCachedProducts = unstable_cache(
+  async (userId: string) => {
+    return db.select().from(products).where(eq(products.userId, userId));
+  },
+  ['products-list'],
+  { revalidate: 60 } // 60 seconds TTL
+);
+
+// Usage in API route
+const products = await getCachedProducts(user.id);
+```
+
+### 8. Issue: Query Parameter Handling
+**Problem:** Query parameters are not properly parsed or validated.
+
+**Solutions:**
+- Add explicit type conversions for query parameters
+- Validate query parameters with Zod
+- Use defaults for missing parameters
+- Handle malformed parameters gracefully
+
+```typescript
+// Better query parameter handling
+const { searchParams } = new URL(request.url);
+const page = parseInt(searchParams.get('page') || '1', 10);
+const limit = Math.min(parseInt(searchParams.get('limit') || '10', 10), 100); // Cap maximum
+const sortBy = searchParams.get('sortBy') || 'createdAt';
+const order = searchParams.get('order')?.toLowerCase() === 'asc' ? 'asc' : 'desc';
+
+// Add validation
+if (isNaN(page) || page < 1) {
+  return NextResponse.json({ error: 'Invalid page parameter' }, { status: 400 });
+}
+
+if (isNaN(limit) || limit < 1) {
+  return NextResponse.json({ error: 'Invalid limit parameter' }, { status: 400 });
+}
+```
+
+## Examples
+
+### ✅ Good Practices
+```typescript
+// Good file structure
+// src/app/[locale]/(auth)/api/products/route.ts (List/Create)
+// src/app/[locale]/(auth)/api/products/[id]/route.ts (Get/Update/Delete)
+// src/app/[locale]/(auth)/api/products/schemas.ts (Validation)
+// src/app/[locale]/(auth)/api/products/db.ts (Database)
+
+// Good authentication implementation
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  const user = await currentUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  
+  // Continue with endpoint logic
+}
+
+// Good validation implementation
+import { productSchema } from './schemas';
+
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  try {
+    const user = await currentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    const body = await request.json();
+    const validatedData = productSchema.parse(body);
+    
+    // Continue with endpoint logic
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: 'Validation error', details: error.errors }, { status: 400 });
+    }
+    
+    // Handle other errors
+  }
+}
+
+// Good database transaction handling
+export async function updateProductWithTransaction(
+  id: string, 
+  data: ProductUpdate,
+  userId: string
+) {
+  return await db.$transaction(async (tx) => {
+    // Validate existence in transaction
+    const existing = await tx.query.products.findFirst({
+      where: eq(products.id, id) && eq(products.userId, userId)
+    });
+    
+    if (!existing) {
+      throw new ProductError('Product not found', 404);
+    }
+    
+    // Update in transaction
+    const updated = await tx
+      .update(products)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(products.id, id))
+      .returning();
+      
+    return updated[0];
+  });
+}
+```
+
+### ❌ Bad Practices
+```typescript
+// Poor file structure
+// src/api/products.ts (Not in App Router structure)
+
+// Missing authentication
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  // No authentication check
+  const products = await getProducts();
+  return NextResponse.json(products);
+}
+
+// Poor validation
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  const body = await request.json();
+  // No validation
+  const product = await createProduct(body);
+  return NextResponse.json(product);
+}
+
+// Inconsistent error handling
+export async function PUT(request: NextRequest): Promise<NextResponse> {
+  try {
+    // Logic
+  } catch (error) {
+    // No structured error response
+    return NextResponse.json({ error: 'Something went wrong' }, { status: 500 });
+  }
+}
+```
+
+## Critical Rules
+1. Place all product API endpoints under `src/app/[locale]/(auth)/api/products/`
+2. Implement Clerk authentication for all endpoints
+3. Use Zod for request validation
+4. Follow REST conventions for URL structure and HTTP methods
+5. Implement consistent error handling
+6. Create separate files for schemas, database operations, and route handlers
+7. Always check if the user has permission to access/modify the requested product
+8. Include proper documentation for endpoint usage
+9. Write comprehensive tests for all endpoints
+10. Use database transactions for operations that require consistency
+11. Implement proper logging for debugging and monitoring
+
+## Auto-Attach Conditions
+
+### File Patterns
+- `src/app/[locale]/(auth)/api/products/**/*`
+- `src/features/products/**/*`
+- `src/app/[locale]/(auth)/product-management/**/*`
+
+### Context Triggers
+- When creating or modifying product API endpoints
+- When implementing product-related database operations
+- When handling product data in the UI

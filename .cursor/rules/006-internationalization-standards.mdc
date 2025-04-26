@@ -1,0 +1,164 @@
+---
+description: Standards for internationalization (i18n) using next-intl and Crowdin to ensure proper localization across the application
+globs: ["**/*.tsx", "**/*.ts"]
+alwaysApply: false
+---
+
+# Internationalization (i18n) Standards
+
+## Context
+- When adding new user-facing text to the application
+- When creating or modifying components with text content
+- When handling localized content in pages and components
+- When setting up translation workflows
+
+## Requirements
+
+### 1. Translation File Structure
+- All translations are stored in `src/locales/` directory
+- English (en) is the default language
+- Use nested JSON objects for organizing translations
+- Group translations by page or component
+- Use descriptive keys that reflect the content
+
+### 2. Translation Keys
+- Use `snake_case` for translation keys
+- Group related translations under a common parent key (e.g., component name)
+- Create hierarchical structures for better organization
+- Use descriptive names that reflect the content's purpose
+
+### 3. Usage in Components
+- Import and use the `useTranslations` hook from next-intl
+- Avoid hardcoding any user-facing strings
+- Extract all text content to translation files
+- Handle pluralization and formatting with next-intl utilities
+
+### 4. Translation Variables
+- Use placeholders in messages for dynamic content
+- Format placeholders as `{variableName}`
+- Pass variables as an object to the translation function
+- Use proper typing for translation variables
+
+### 5. Crowdin Workflow
+- Only modify the English (en) source files
+- Never manually edit translation files for other languages
+- Translations for other languages are handled by Crowdin
+- Synchronization happens automatically via GitHub Actions
+
+### 6. Special Content
+- Use HTML entities for special characters
+- For rich text, use the `<important>` tag or similar markup
+- Handle HTML markup in translations with the rich function
+- Document any special formatting needed in comments
+
+## Examples
+
+### ✅ Good Practices
+```json
+// src/locales/en.json
+{
+  "Hero": {
+    "title": "The perfect <important>SaaS template</important> to build and scale your business with ease.",
+    "description": "A free and open-source landing page template for your SaaS business, built with React, TypeScript, Shadcn UI, and Tailwind CSS.",
+    "primary_button": "Get Started",
+    "secondary_button": "Star on GitHub"
+  }
+}
+```
+
+```tsx
+// Component with proper i18n
+import { useTranslations } from 'next-intl';
+
+export const HeroSection = () => {
+  const t = useTranslations('Hero');
+  
+  return (
+    <section>
+      <h1>{t.rich('title', {
+        important: (chunks) => <span className="text-primary">{chunks}</span>
+      })}</h1>
+      <p>{t('description')}</p>
+      <div>
+        <button>{t('primary_button')}</button>
+        <button>{t('secondary_button')}</button>
+      </div>
+    </section>
+  );
+};
+```
+
+```tsx
+// Using variables in translations
+import { useTranslations } from 'next-intl';
+
+export const Greeting = ({ name }: { name: string }) => {
+  const t = useTranslations('Common');
+  
+  return (
+    <p>{t('greeting', { name })}</p>
+  );
+};
+
+// In en.json:
+// "Common": {
+//   "greeting": "Hello, {name}!"
+// }
+```
+
+### ❌ Bad Practices
+```tsx
+// Hardcoded strings
+export const HeroSection = () => {
+  return (
+    <section>
+      <h1>The perfect <span className="text-primary">SaaS template</span> to build your business</h1>
+      <p>A free template for your SaaS business.</p>
+      <div>
+        <button>Get Started</button>
+        <button>Star on GitHub</button>
+      </div>
+    </section>
+  );
+};
+```
+
+```tsx
+// Inconsistent translation key naming
+// In en.json:
+// {
+//   "hero-component": {
+//     "mainTitle": "Welcome",
+//     "ButtonText": "Click me"
+//   }
+// }
+```
+
+```tsx
+// Manual string concatenation
+import { useTranslations } from 'next-intl';
+
+export const UserProfile = ({ user }: { user: { name: string } }) => {
+  const t = useTranslations('Profile');
+  
+  // Don't do this!
+  return <p>{t('welcome_message') + ' ' + user.name}</p>;
+  
+  // Do this instead:
+  // return <p>{t('welcome_message_with_name', { name: user.name })}</p>;
+};
+```
+
+## Critical Rules
+1. Always use translation keys for user-facing text
+2. Maintain a hierarchical structure in translation files
+3. Use English (en) as the source language
+4. Use the `useTranslations` hook from next-intl
+5. Use variables for dynamic content in translations
+6. Follow the snake_case naming convention for keys
+7. Group translations logically by component or feature
+8. Never manually edit non-English translation files
+9. Use rich text formatting for complex content
+10. Document any special formatting required for translations 
+
+WHENEVER YOU USE THIS RULE, START YOUR MESSAGE WITH THIS RULE NAME.

@@ -8,6 +8,9 @@
 # Database
 *.db
 
+#ag-grid
+/ag-grid
+
 # testing
 /coverage
 

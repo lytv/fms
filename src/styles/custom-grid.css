@@ -1,0 +1,106 @@
+/* Customize AG Grid styles for our application */
+
+/* Common styles for light/dark mode */
+.ag-theme-alpine {
+  --ag-grid-size: 5px;
+  --ag-border-radius: 4px;
+  --ag-cell-horizontal-padding: 12px;
+  --ag-header-column-separator-display: block;
+  --ag-header-column-separator-height: 75%;
+  --ag-header-column-separator-width: 1px;
+  --ag-row-height: 40px;
+  --ag-header-height: 45px;
+  --ag-font-family: var(--font-sans);
+  --ag-font-size: 14px;
+}
+
+/* Light mode specific styles */
+:root:not(.dark) .ag-theme-alpine {
+  --ag-foreground-color: hsl(var(--foreground));
+  --ag-background-color: hsl(var(--background));
+  --ag-header-foreground-color: hsl(var(--foreground));
+  --ag-header-background-color: hsl(var(--muted));
+  --ag-odd-row-background-color: hsl(var(--background));
+  --ag-row-border-color: hsl(var(--border));
+  --ag-row-hover-color: hsl(var(--muted) / 50%);
+  --ag-selected-row-background-color: hsl(var(--primary) / 10%);
+  --ag-header-column-separator-color: hsl(var(--border));
+  --ag-border-color: hsl(var(--border));
+  --ag-cell-horizontal-border: solid 1px hsl(var(--border));
+  --ag-input-focus-border-color: hsl(var(--primary));
+}
+
+/* Dark mode specific styles */
+.dark .ag-theme-alpine {
+  --ag-foreground-color: hsl(var(--foreground));
+  --ag-background-color: hsl(var(--background));
+  --ag-header-foreground-color: hsl(var(--foreground));
+  --ag-header-background-color: hsl(var(--muted));
+  --ag-odd-row-background-color: hsl(var(--background));
+  --ag-row-border-color: hsl(var(--border));
+  --ag-row-hover-color: hsl(var(--muted) / 50%);
+  --ag-selected-row-background-color: hsl(var(--primary) / 15%);
+  --ag-header-column-separator-color: hsl(var(--border));
+  --ag-border-color: hsl(var(--border));
+  --ag-cell-horizontal-border: solid 1px hsl(var(--border));
+  --ag-input-focus-border-color: hsl(var(--primary));
+}
+
+/* Header styling */
+.ag-header-cell-text {
+  font-weight: 600;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .ag-theme-alpine {
+    --ag-grid-size: 4px;
+    --ag-cell-horizontal-padding: 8px;
+    --ag-row-height: 36px;
+    --ag-header-height: 40px;
+    --ag-font-size: 13px;
+  }
+}
+
+/* Focus styling */
+.ag-cell:focus {
+  border: 1px solid hsl(var(--primary)) !important;
+}
+
+/* Selected row styling */
+.ag-row-selected {
+  background-color: hsl(var(--primary) / 15%) !important;
+}
+
+/* Cell editing styles */
+.ag-cell-inline-editing {
+  padding: 8px !important;
+  height: 100% !important;
+  border: 1px solid hsl(var(--primary)) !important;
+  border-radius: 4px !important;
+}
+
+/* Pagination styling */
+.ag-paging-panel {
+  border-top: 1px solid hsl(var(--border));
+  font-size: 0.875rem;
+}
+
+.ag-paging-button {
+  cursor: pointer;
+}
+
+/* Loading overlay */
+.ag-overlay-loading-wrapper {
+  background-color: hsl(var(--background) / 50%);
+}
+
+/* Toolbar container */
+.grid-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}

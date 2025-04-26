@@ -1,0 +1,167 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Clerk Authentication Standards
+
+## Context
+- When implementing authentication in the Next.js application
+- When working with user data and protected routes
+- When setting up sign-in, sign-up, and user profile pages
+- When implementing organization/team features
+
+## Requirements
+
+### 1. Clerk Setup
+- Use environment variables for Clerk configuration:
+  ```typescript
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_*****
+  NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+  CLERK_SECRET_KEY=sk_test_*****
+  ```
+- Use the ClerkProvider wrapper in the authentication-related layouts:
+  ```tsx
+  <ClerkProvider
+    localization={locale}
+    signInUrl={signInUrl}
+    signUpUrl={signUpUrl}
+    afterSignOutUrl={afterSignOutUrl}
+  >
+    {children}
+  </ClerkProvider>
+  ```
+
+### 2. Protected Routes
+- Use middleware to protect routes that require authentication:
+  ```typescript
+  const isProtectedRoute = createRouteMatcher([
+    '/dashboard(.*)',
+    '/:locale/dashboard(.*)',
+    '/api(.*)',
+  ]);
+
+  export default function middleware(req, evt) {
+    if (isProtectedRoute(req)) {
+      return clerkMiddleware((auth) => {
+        auth().protect();
+        return nextIntlMiddleware(req);
+      })(req, evt);
+    }
+    
+    return nextIntlMiddleware(req);
+  }
+  ```
+
+### 3. User Data Access
+- Use the Clerk hooks to access user data on the client side:
+  ```typescript
+  import { useAuth, useUser } from '@clerk/nextjs';
+  
+  // In component
+  const { userId } = useAuth();
+  const { user } = useUser();
+  ```
+- Use the auth helper on the server side:
+  ```typescript
+  import { auth } from '@clerk/nextjs/server';
+  
+  // In server action or API route
+  const { userId } = auth();
+  ```
+
+### 4. Organization Management
+- Use Clerk's organization features for team-based access:
+  ```typescript
+  import { useOrganization } from '@clerk/nextjs';
+  
+  // In component
+  const { organization, isLoaded } = useOrganization();
+  ```
+- Redirect users without an organization to the organization selection page:
+  ```typescript
+  if (authObj.userId && !authObj.orgId && req.nextUrl.pathname.includes('/dashboard')) {
+    return NextResponse.redirect(new URL('/onboarding/organization-selection', req.url));
+  }
+  ```
+
+### 5. Localization
+- Support multiple languages for auth components:
+  ```typescript
+  // For English
+  import { enUS } from '@clerk/localizations';
+  
+  // For French
+  import { frFR } from '@clerk/localizations';
+  
+  <ClerkProvider localization={localeObj}>
+    {children}
+  </ClerkProvider>
+  ```
+
+## Examples
+
+### ✅ Good Practices
+```tsx
+// Auth layout with proper localization
+export default function AuthLayout({ children, params }) {
+  let clerkLocale = enUS;
+  let signInUrl = '/sign-in';
+  
+  if (params.locale === 'fr') {
+    clerkLocale = frFR;
+    signInUrl = '/fr/sign-in';
+  }
+  
+  return (
+    <ClerkProvider
+      localization={clerkLocale}
+      signInUrl={signInUrl}
+    >
+      {children}
+    </ClerkProvider>
+  );
+}
+
+// Protected component with proper auth checks
+export default function Dashboard() {
+  const { userId } = useAuth();
+  const { user } = useUser();
+  
+  if (!userId) {
+    return null; // Will be handled by middleware
+  }
+  
+  return <div>Welcome, {user.firstName}!</div>;
+}
+```
+
+### ❌ Bad Practices
+```tsx
+// Don't hardcode Clerk configuration
+export default function AuthLayout({ children }) {
+  return (
+    <ClerkProvider
+      publishableKey="pk_test_123" // Hardcoded key - BAD!
+    >
+      {children}
+    </ClerkProvider>
+  );
+}
+
+// Don't implement auth checks inconsistently
+export default function Dashboard() {
+  // No auth check, relying only on middleware
+  return <div>Dashboard content</div>;
+}
+```
+
+## Critical Rules
+1. Always wrap authentication-related components with ClerkProvider
+2. Use middleware to protect routes requiring authentication
+3. Use environment variables for Clerk API keys
+4. Handle organization access in middleware
+5. Support localization for auth components
+6. Never expose secret keys in client-side code
+7. Implement consistent auth checks using hooks and auth helpers
+8. Follow Next.js best practices for auth layouts and routing

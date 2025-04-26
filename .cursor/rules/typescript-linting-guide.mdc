@@ -1,0 +1,156 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# TypeScript Linting and Type Safety Guidelines
+
+These guidelines help avoid common linting errors and type checking issues that cause build failures.
+
+## 1. Unused Parameters
+
+### Next.js Route Handlers
+- Route handlers require the `request` parameter for type compatibility
+- Prefix unused parameters with underscore: `_request: NextRequest`
+
+```typescript
+// ❌ Bad - causes "is declared but its value is never read" error
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } },
+): Promise<NextResponse> {
+  // request not used
+}
+
+// ✅ Good - no linting error
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: { id: string } },
+): Promise<NextResponse> {
+  // _request not used but required for type compatibility
+}
+```
+
+### React Components
+- Remove unused props from type definitions and destructuring
+- Or prefix with underscore if part of a standard interface
+
+```typescript
+// ❌ Bad - unused 'api' parameter
+export type Props = {
+  api: any;
+  node: any;
+};
+
+export const Component = ({ api, node }) => {
+  // api not used
+}
+
+// ✅ Good - removed unused parameter
+export type Props = {
+  node: any;
+};
+
+export const Component = ({ node }) => {
+  // Only required props included
+}
+```
+
+## 2. Null Safety
+
+### Database Query Results
+- Always handle potential undefined/null values from database queries
+- Use optional chaining (?.) and nullish coalescing (??) operators
+
+```typescript
+// ❌ Bad - may cause "Property does not exist on type" errors
+const [{ value: totalCount }] = await db
+  .select({ value: count() })
+  .from(schema);
+
+// ✅ Good - handles potential undefined results
+const result = await db
+  .select({ value: count() })
+  .from(schema);
+  
+const totalCount = result[0]?.value || 0;
+```
+
+## 3. Schema and Type Definitions
+
+### Zod Schema Type Mapping
+- Clearly distinguish between input and output types
+- Input schemas shouldn't include auto-generated database fields
+- Create separate types for different uses of the same entity
+
+```typescript
+// ❌ Bad - mixing input and database fields
+export const schema = z.object({
+  /* user input fields */
+  name: z.string(),
+  /* database fields */
+  id: z.number(),
+  createdAt: z.date()
+});
+
+// ✅ Good - separate schemas and types
+export const inputSchema = z.object({
+  name: z.string()
+});
+
+export const responseSchema = inputSchema.extend({
+  id: z.number(),
+  createdAt: z.date()
+});
+
+export type Input = z.infer<typeof inputSchema>;
+export type Response = z.infer<typeof responseSchema>;
+```
+
+### Database Operations 
+- Match insert/update values with schema definitions
+- Only include fields that are explicitly defined in the schema
+- Don't pass entire objects with extra fields
+
+```typescript
+// ❌ Bad - may include fields not in the database schema
+.values({
+  ...data, // Could contain extra fields not in schema
+  userId: userId
+})
+
+// ✅ Good - explicitly select only valid fields
+.values({
+  name: data.name,
+  email: data.email,
+  userId: userId
+})
+```
+
+## 4. Date Handling
+- Ensure correct Date type usage
+- Convert string dates to Date objects when required
+
+```typescript
+// ❌ Bad - string date where Date object is required
+.set({
+  updatedAt: '2023-05-01' // Error if schema expects Date
+})
+
+// ✅ Good - proper Date object
+.set({
+  updatedAt: new Date()
+})
+```
+
+## Build Process Checklist
+Before submitting code, run:
+```bash
+npm run build
+```
+
+If you encounter type errors:
+1. Read the error message carefully to identify the exact issue
+2. Fix one error at a time and verify the fix
+3. Check for related errors that might be caused by the same root issue
+4. Verify fixes with another build

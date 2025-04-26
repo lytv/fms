@@ -55,3 +55,19 @@ export const todoSchema = pgTable('todo', {
     .notNull(),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
 });
+
+export const productsSchema = pgTable('products', {
+  id: serial('id').primaryKey(),
+  stt: serial('stt').notNull(),
+  maHang: text('ma_hang').notNull(),
+  tenHang: text('ten_hang').notNull(),
+  ghiChu: text('ghi_chu'),
+  nhomHang: text('nhom_hang'),
+  vietTat: text('viet_tat'),
+  nguoiThucHien: text('nguoi_thuc_hien').notNull(),
+  ngayTao: timestamp('ngay_tao', { mode: 'date' }).defaultNow().notNull(),
+  ngayCapNhat: timestamp('ngay_cap_nhat', { mode: 'date' })
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+});

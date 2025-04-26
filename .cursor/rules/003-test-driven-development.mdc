@@ -1,0 +1,213 @@
+---
+description: This rule enforces a strict Test-Driven Development (TDD) workflow across the codebase. It ensures that all new features, bug fixes, and refactoring follow the red-green-refactor cycle, with tests written before implementation. The rule promotes high-quality, maintainable tests and maintains a minimum code coverage threshold of 80%.
+globs: 
+alwaysApply: true
+---
+ ---
+description: This rule enforces a strict Test-Driven Development (TDD) workflow across the codebase. It ensures that all new features, bug fixes, and refactoring follow the red-green-refactor cycle, with tests written before implementation. The rule promotes high-quality, maintainable tests and maintains a minimum code coverage threshold of 80%.
+globs: null
+alwaysApply: true
+---
+
+ # Test-Driven Development (TDD) Workflow Standards
+
+## Context
+- When implementing new features or functionality
+- When fixing bugs
+- When refactoring existing code
+- When maintaining test coverage
+
+## Requirements
+
+### 1. TDD Cycle (Red-Green-Refactor)
+- Follow the strict order of the TDD cycle:
+  1. Write a failing test (Red)
+  2. Write minimal code to pass the test (Green)
+  3. Refactor while maintaining test coverage (Refactor)
+
+### 2. Test-First Approach
+- Write tests before implementation
+- Start with the simplest test case
+- Focus on one behavior at a time
+- Use descriptive test names that explain the expected behavior
+- Follow the Arrange-Act-Assert pattern in tests
+
+### 3. Test Structure
+- Each test should be independent
+- Tests should be isolated from each other
+- Use setup and teardown hooks appropriately
+- Follow the "Given-When-Then" format in test descriptions
+- Keep tests focused and atomic
+
+### 4. Test Coverage Requirements
+- Maintain minimum 80% code coverage
+- Cover all edge cases and error conditions
+- Test both positive and negative scenarios
+- Include integration tests for critical paths
+- Test public APIs thoroughly
+
+### 5. Test Quality Standards
+- Tests should be readable and maintainable
+- Avoid test duplication
+- Use meaningful test data
+- Mock external dependencies
+- Use appropriate assertion methods
+
+### 6. Refactoring Guidelines
+- Only refactor when all tests are passing
+- Refactor in small, safe steps
+- Keep refactoring changes separate from feature changes
+- Maintain test coverage during refactoring
+- Document significant refactoring decisions
+
+## Examples
+
+### ✅ Good Practices
+```typescript
+// Test-First Example
+describe('UserService', () => {
+  describe('createUser', () => {
+    it('should create a new user with valid data', () => {
+      // Arrange
+      const userData = {
+        name: 'John Doe',
+        email: 'john@example.com'
+      };
+      const userService = new UserService();
+
+      // Act
+      const result = userService.createUser(userData);
+
+      // Assert
+      expect(result).toBeDefined();
+      expect(result.name).toBe(userData.name);
+      expect(result.email).toBe(userData.email);
+    });
+
+    it('should throw error for invalid email', () => {
+      // Arrange
+      const invalidUserData = {
+        name: 'John Doe',
+        email: 'invalid-email'
+      };
+      const userService = new UserService();
+
+      // Act & Assert
+      expect(() => userService.createUser(invalidUserData))
+        .toThrow('Invalid email format');
+    });
+  });
+});
+
+// Implementation after tests
+class UserService {
+  createUser(userData: UserData): User {
+    if (!this.isValidEmail(userData.email)) {
+      throw new Error('Invalid email format');
+    }
+    return {
+      id: generateId(),
+      ...userData,
+      createdAt: new Date()
+    };
+  }
+
+  private isValidEmail(email: string): boolean {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
+}
+```
+
+### ❌ Bad Practices
+```typescript
+// Writing implementation before tests
+class UserService {
+  createUser(userData: UserData): User {
+    return {
+      id: generateId(),
+      ...userData,
+      createdAt: new Date()
+    };
+  }
+}
+
+// Tests written after implementation
+describe('UserService', () => {
+  it('creates user', () => {
+    const service = new UserService();
+    const result = service.createUser({
+      name: 'John',
+      email: 'john@example.com'
+    });
+    expect(result).toBeDefined();
+  });
+});
+```
+## Auto-Attach Conditions
+
+### File Patterns
+- `**/*.test.ts`
+- `**/*.spec.ts`
+- `**/*.test.tsx`
+- `**/*.spec.tsx`
+- `**/*.test.js`
+- `**/*.spec.js`
+- `**/*.test.jsx`
+- `**/*.spec.jsx`
+- `**/__tests__/**/*`
+- `**/tests/**/*`
+
+### Context Triggers
+- When creating new test files
+- When modifying existing test files
+- When implementing new features
+- When fixing bugs
+- When refactoring code
+- When reviewing pull requests containing tests
+
+### IDE Integration
+- Auto-run tests on file save
+- Show test coverage in gutter
+- Highlight untested code
+- Suggest test cases for new code
+
+## Critical Rules
+1. Always write tests first (Red phase)
+2. Write minimal code to pass tests (Green phase)
+3. Refactor only when tests are passing
+4. Keep tests independent and isolated
+5. Use meaningful test descriptions
+6. Follow the Arrange-Act-Assert pattern
+7. Maintain high test coverage
+8. Document test requirements and assumptions
+
+## Enforcement
+- Configure CI/CD to run tests before merging
+- Enforce minimum test coverage requirements
+- Review test quality in code reviews
+- Use automated tools to detect test smells
+- Regular test maintenance and cleanup
+- Monitor test execution time and performance
+
+## Tools and Setup
+- Jest for unit testing
+- Playwright for E2E testing
+- Coverage reporting tools
+- Test runners configuration
+- Mocking libraries setup
+- Test utilities and helpers
+
+## Related Rules
+- TypeScript Type Safety (002)
+- Code Review Standards
+- Git Workflow Standards
+
+## Exceptions
+- Prototype/experimental code (with approval)
+- Generated code
+- Third-party code
+- Configuration files
+- Build scripts
+
+
+WHENEVER YOU USE THIS RULE, START YOUR MESSAGE WITH THIS RULE NAME.
