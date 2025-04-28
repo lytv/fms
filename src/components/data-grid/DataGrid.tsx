@@ -180,13 +180,19 @@ export const DataGrid: React.FC<DataGridProps> = ({
       return emptyArray;
     }
 
+    // Apply default column properties to each column
+    const columnsWithDefaults = inputColumnDefs.map(col => ({
+      ..._defaultColDef,
+      ...col,
+    }));
+
     if (onEditClick || onDeleteClick) {
       // Check if actions column already exists
-      const hasActionsColumn = inputColumnDefs.some(col => col.field === 'actions');
+      const hasActionsColumn = columnsWithDefaults.some(col => col.field === 'actions');
 
       if (!hasActionsColumn) {
         return [
-          ...inputColumnDefs,
+          ...columnsWithDefaults,
           {
             headerName: 'Actions',
             field: 'actions',
@@ -210,8 +216,8 @@ export const DataGrid: React.FC<DataGridProps> = ({
       }
     }
 
-    return inputColumnDefs;
-  }, [inputColumnDefs, onEditClick, onDeleteClick]);
+    return columnsWithDefaults;
+  }, [inputColumnDefs, onEditClick, onDeleteClick, _defaultColDef]);
 
   // Initialize column visibility
   useEffect(() => {
@@ -251,14 +257,51 @@ export const DataGrid: React.FC<DataGridProps> = ({
     }
 
     return [...filteredData].sort((a, b) => {
-      if (a[sortConfig.key!] === b[sortConfig.key!]) {
-        return 0;
+      const aValue = a[sortConfig.key!];
+      const bValue = b[sortConfig.key!];
+
+      // Handle undefined and null values
+      if (aValue === undefined || aValue === null) {
+        return sortConfig.direction === 'ascending' ? -1 : 1;
+      }
+      if (bValue === undefined || bValue === null) {
+        return sortConfig.direction === 'ascending' ? 1 : -1;
       }
 
-      if (sortConfig.direction === 'ascending') {
-        return a[sortConfig.key!] < b[sortConfig.key!] ? -1 : 1;
+      // Handle different data types
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        // Check if strings are dates (like "4/25/2025, 9:25:35 PM")
+        const aDate = new Date(aValue);
+        const bDate = new Date(bValue);
+
+        // If both strings are valid dates
+        if (!Number.isNaN(aDate.getTime()) && !Number.isNaN(bDate.getTime())) {
+          return sortConfig.direction === 'ascending'
+            ? aDate.getTime() - bDate.getTime()
+            : bDate.getTime() - aDate.getTime();
+        }
+
+        // Regular string comparison
+        return sortConfig.direction === 'ascending'
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
+      } else if (aValue instanceof Date && bValue instanceof Date) {
+        // Date comparison
+        return sortConfig.direction === 'ascending'
+          ? aValue.getTime() - bValue.getTime()
+          : bValue.getTime() - aValue.getTime();
+      } else if (typeof aValue === 'number' && typeof bValue === 'number') {
+        // Number comparison
+        return sortConfig.direction === 'ascending'
+          ? aValue - bValue
+          : bValue - aValue;
       } else {
-        return a[sortConfig.key!] > b[sortConfig.key!] ? -1 : 1;
+        // Convert to string for other types
+        const aString = String(aValue);
+        const bString = String(bValue);
+        return sortConfig.direction === 'ascending'
+          ? aString.localeCompare(bString)
+          : bString.localeCompare(aString);
       }
     });
   }, [filteredData, sortConfig]);
