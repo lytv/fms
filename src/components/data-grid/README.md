@@ -5,6 +5,19 @@ This enhanced DataGrid component extends the base AG Grid implementation with ad
 1. **Column Filters** - Displays filter inputs beneath column headers
 2. **Action Buttons** - Adds Edit and Delete buttons to each row
 3. **Toolbar Controls** - Add, Edit, Delete, Refresh, Export/Import functions
+4. **Row Selection** - Supports single and multiple row selection modes with consistent ID-based row identity tracking
+
+## Row Selection and Deletion
+
+The DataGrid component uses ID-based row selection to ensure consistent behavior even when row objects change references. This is important for proper functionality in React applications where props or state updates might create new object references while maintaining the same IDs.
+
+Key behaviors:
+- Selected rows are tracked by ID, not by object reference
+- The row selection state is maintained correctly across re-renders
+- Multiple selection uses checkboxes in the first column
+- Row click selection is supported
+- Header checkbox for select all/deselect all
+- Delete button works with multiple selection
 
 ## Basic Usage
 

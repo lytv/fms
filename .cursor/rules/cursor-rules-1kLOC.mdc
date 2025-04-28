@@ -1,0 +1,75 @@
+---
+description: Cursor Rules cho dự án
+globs: 
+alwaysApply: false
+---
+
+# Cursor Rules cho dự án
+
+## Giới hạn độ dài file
+
+- Mỗi file không được vượt quá 1000 dòng code (LOC)
+- Các file vượt quá 1000 LOC phải được refactor thành các module nhỏ hơn với các chức năng cụ thể
+- Comment và dòng trống không tính vào giới hạn LOC
+
+## Nguyên tắc refactoring
+
+Khi một file vượt quá giới hạn 1000 LOC, hãy áp dụng các bước sau:
+
+1. **Phân tích trách nhiệm**: Xác định các chức năng/trách nhiệm riêng biệt trong file
+2. **Trích xuất module**: Tách các chức năng thành module độc lập
+3. **Áp dụng nguyên tắc Single Responsibility**: Mỗi file chỉ nên đảm nhận một trách nhiệm chính
+4. **Tạo interface rõ ràng**: Đảm bảo giao diện giữa các module mới tách ra là rõ ràng, nhất quán
+
+## Quy ước tổ chức file mới
+
+- File được tách ra nên được đặt trong cùng thư mục với file gốc, trừ khi có cấu trúc thư mục phù hợp hơn
+- Tên file mới nên phản ánh chức năng cụ thể mà nó đảm nhận
+- Giữ nguyên cấu trúc import/export hiện tại để đảm bảo tương thích ngược
+
+## Các mẫu code và cấu trúc cần tuân thủ
+
+### React Components
+
+- Tách các component lớn thành các component nhỏ hơn
+- Trích xuất custom hooks cho logic phức tạp
+- Tách logic business và UI rendering
+
+### Logic xử lý nghiệp vụ
+
+- Tách các service thành các module chức năng nhỏ hơn
+- Áp dụng mẫu Factory hoặc Strategy khi phù hợp
+- Tạo các utility function tái sử dụng cho các chức năng phổ biến
+
+### API và Data Processing
+
+- Tách các API client thành các module riêng biệt theo domain
+- Tách các hàm xử lý dữ liệu phức tạp thành các utility riêng
+- Áp dụng adapter pattern khi cần chuyển đổi cấu trúc dữ liệu
+
+## Hướng dẫn triển khai
+
+1. Xác định các file vượt quá 1000 LOC
+2. Ưu tiên refactor các file có mức độ phức tạp và tần suất thay đổi cao
+3. Tạo test case cho các chức năng trước khi refactor để đảm bảo tính đúng đắn
+4. Refactor từng phần một, không thay đổi toàn bộ cùng lúc
+5. Cập nhật tài liệu và comment khi cần thiết
+
+## Ngoại lệ
+
+- File auto-generated có thể vượt quá giới hạn 1000 LOC
+- Các file configuration đặc biệt có thể được xem xét miễn trừ
+
+## Tools và kỹ thuật gợi ý
+
+- Sử dụng các công cụ phân tích code để xác định các file cần refactor
+- Áp dụng kỹ thuật Extract Method, Extract Class, và Extract Interface
+- Sử dụng dependency injection để giảm sự phụ thuộc giữa các module
+
+## Checklist đánh giá sau refactoring
+
+- File mới có dưới 1000 LOC
+- Chức năng không bị thay đổi sau refactoring
+- Các test case vẫn pass
+- Tài liệu đã được cập nhật
+- Code review đã được thực hiện

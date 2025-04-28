@@ -432,7 +432,7 @@ export const DataGrid: React.FC<DataGridProps> = ({
     setSelectedRows((prev) => {
       if (isSelected) {
         // Add row to selection if not already present
-        if (!prev.includes(row)) {
+        if (!prev.some(item => item.id === row.id)) {
           const newSelection = [...prev, row];
           if (newSelection.length === 1 && onRowSelected) {
             const selectedRow = newSelection[0]!;
@@ -442,14 +442,14 @@ export const DataGrid: React.FC<DataGridProps> = ({
         }
       } else {
         // Remove row from selection
-        return prev.filter(item => item !== row);
+        return prev.filter(item => item.id !== row.id);
       }
       return prev;
     });
   }, [onRowSelected]);
 
   const isRowSelected = useCallback((row: Record<string, any>) => {
-    return selectedRows.includes(row);
+    return selectedRows.some(item => item.id === row.id);
   }, [selectedRows]);
 
   // Sorting logic

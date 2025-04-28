@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslations } from 'next-intl';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -66,6 +66,19 @@ export function ProductForm({
       vietTat: initialData?.vietTat || '',
     },
   });
+
+  // Reset form when initialData changes
+  useEffect(() => {
+    if (initialData) {
+      form.reset({
+        maHang: initialData.maHang || '',
+        tenHang: initialData.tenHang || '',
+        ghiChu: initialData.ghiChu || '',
+        nhomHang: initialData.nhomHang || '',
+        vietTat: initialData.vietTat || '',
+      });
+    }
+  }, [initialData, form]);
 
   const handleSubmit = (data: ProductFormData) => {
     onSubmit(data);

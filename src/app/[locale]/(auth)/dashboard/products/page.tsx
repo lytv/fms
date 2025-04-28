@@ -275,7 +275,11 @@ export default function ProductsPage() {
   const handleDeleteClick = (data: Record<string, any>[]) => {
     // Convert from Record<string, any>[] to Product[]
     const products = data as unknown as Product[];
-    setSelectedProducts(products);
+    // Ensure we have unique products based on ID
+    const uniqueProducts = Array.from(
+      new Map(products.map(product => [product.id, product])).values(),
+    );
+    setSelectedProducts(uniqueProducts);
     setIsDeleteDialogOpen(true);
   };
 
@@ -325,6 +329,7 @@ export default function ProductsPage() {
 
       {/* Edit Product Dialog */}
       <ProductForm
+        key={currentProduct ? `edit-${currentProduct.id}` : 'create'}
         isOpen={isEditDialogOpen}
         onClose={() => setIsEditDialogOpen(false)}
         onSubmit={handleEditSubmit}
