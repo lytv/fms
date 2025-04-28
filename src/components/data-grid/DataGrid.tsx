@@ -10,7 +10,7 @@ import {
   Trash,
   Upload,
 } from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
 
 import { Button } from '@/components/ui/button';
@@ -99,6 +99,41 @@ const CellRenderer: React.FC<{ value: any }> = ({ value }) => {
   return <>{value.toString()}</>;
 };
 
+// Add resize handle component
+const ResizeHandle: React.FC<{ onResize: (deltaX: number) => void }> = ({ onResize }) => {
+  const startPosRef = useRef<number | null>(null);
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (startPosRef.current !== null) {
+      const deltaX = e.clientX - startPosRef.current;
+      onResize(deltaX);
+      startPosRef.current = e.clientX;
+    }
+  };
+
+  const handleMouseUp = () => {
+    startPosRef.current = null;
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    startPosRef.current = e.clientX;
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    e.preventDefault();
+  };
+
+  return (
+    <button
+      type="button"
+      className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-primary/20 focus:outline-none focus:ring-1 focus:ring-primary"
+      onMouseDown={handleMouseDown}
+      aria-label="Resize column"
+    />
+  );
+};
+
 export type ColumnDef = {
   field: string;
   headerName?: string;
@@ -171,6 +206,7 @@ export const DataGrid: React.FC<DataGridProps> = ({
   });
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [currentPage, setCurrentPage] = useState(1);
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const rowsPerPage = 10;
   const emptyArray: ColumnDef[] = [];
 
@@ -219,13 +255,16 @@ export const DataGrid: React.FC<DataGridProps> = ({
     return columnsWithDefaults;
   }, [inputColumnDefs, onEditClick, onDeleteClick, _defaultColDef]);
 
-  // Initialize column visibility
+  // Initialize column visibility and widths
   useEffect(() => {
     const initialVisibility: Record<string, boolean> = {};
+    const initialWidths: Record<string, number> = {};
     columnDefs.forEach((col) => {
       initialVisibility[col.field] = col.hide !== true;
+      initialWidths[col.field] = col.width || col.minWidth || 150;
     });
     setColumnVisibility(initialVisibility);
+    setColumnWidths(initialWidths);
   }, [columnDefs]);
 
   useEffect(() => {
@@ -438,6 +477,24 @@ export const DataGrid: React.FC<DataGridProps> = ({
     setCurrentPage(1); // Reset to first page when filter changes
   }, []);
 
+  // Column resize handler
+  const handleColumnResize = useCallback((field: string, deltaX: number) => {
+    setColumnWidths((prev) => {
+      const currentWidth = prev[field] || 150;
+      const newWidth = Math.max(100, currentWidth + deltaX); // Enforce minimum width
+      return {
+        ...prev,
+        [field]: newWidth,
+      };
+    });
+  }, []);
+
+  // Row click handler for selection
+  const handleRowClick = useCallback((row: Record<string, any>) => {
+    const isSelected = isRowSelected(row);
+    handleRowSelection(row, !isSelected);
+  }, [handleRowSelection, isRowSelected]);
+
   return (
     <div className={cn('flex flex-col', className)}>
       {showToolbar && (
@@ -562,8 +619,8 @@ export const DataGrid: React.FC<DataGridProps> = ({
           },
         )}
       >
-        <Table>
-          <TableHeader>
+        <Table className="w-full table-fixed">
+          <TableHeader className="sticky top-0 z-10 bg-background">
             <TableRow>
               <TableHead className="w-[50px] p-2">
                 <Checkbox
@@ -585,10 +642,11 @@ export const DataGrid: React.FC<DataGridProps> = ({
                 columnVisibility[column.field] && (
                   <TableHead
                     key={column.field}
+                    className="relative"
                     style={{
-                      minWidth: column.minWidth,
-                      maxWidth: column.maxWidth,
-                      width: column.width,
+                      width: `${columnWidths[column.field]}px`,
+                      minWidth: `${column.minWidth || 100}px`,
+                      maxWidth: column.maxWidth ? `${column.maxWidth}px` : undefined,
                     }}
                   >
                     <div className="flex flex-col space-y-1">
@@ -635,6 +693,11 @@ export const DataGrid: React.FC<DataGridProps> = ({
                         />
                       )}
                     </div>
+                    {column.resizable !== false && (
+                      <ResizeHandle
+                        onResize={deltaX => handleColumnResize(column.field, deltaX)}
+                      />
+                    )}
                   </TableHead>
                 )
               ))}
@@ -646,9 +709,17 @@ export const DataGrid: React.FC<DataGridProps> = ({
                   paginatedData.map((row, rowIndex) => (
                     <TableRow
                       key={rowIndex}
-                      className={cn({
-                        'bg-muted/50': isRowSelected(row),
-                      })}
+                      className={cn(
+                        // Add alternating row colors for better distinction
+                        rowIndex % 2 === 0 ? 'bg-muted/20' : 'bg-background',
+                        // Add hover effect
+                        'hover:bg-muted/30 cursor-pointer',
+                        // Enhanced selected row styling
+                        {
+                          'bg-primary/10 hover:bg-primary/15 border-l-4 border-primary': isRowSelected(row),
+                        },
+                      )}
+                      onClick={() => handleRowClick(row)}
                     >
                       <TableCell className="p-2">
                         <Checkbox
@@ -656,11 +727,18 @@ export const DataGrid: React.FC<DataGridProps> = ({
                           onCheckedChange={(checked: boolean | 'indeterminate') => {
                             handleRowSelection(row, checked === true);
                           }}
+                          // Prevent click propagation so it doesn't trigger row selection
+                          onClick={e => e.stopPropagation()}
                         />
                       </TableCell>
                       {columnDefs.map(column => (
                         columnVisibility[column.field] && (
-                          <TableCell key={`${rowIndex}-${column.field}`}>
+                          <TableCell
+                            key={`${rowIndex}-${column.field}`}
+                            style={{
+                              width: `${columnWidths[column.field]}px`,
+                            }}
+                          >
                             {column.cellRenderer
                               ? (
                                   <column.cellRenderer
