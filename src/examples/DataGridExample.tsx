@@ -1,7 +1,6 @@
-import type { ColDef } from 'ag-grid-community';
 import React, { useState } from 'react';
 
-import { DataGrid } from '@/components/data-grid/DataGrid';
+import { type ColumnDef, DataGrid } from '@/components/data-grid/DataGrid';
 
 type ProductData = {
   id: number;
@@ -23,31 +22,31 @@ const DataGridExample: React.FC = () => {
   const [data, setData] = useState<ProductData[]>(initialData);
 
   // Define column definitions with filters
-  const columnDefs: ColDef[] = [
+  const columnDefs: ColumnDef[] = [
     {
       field: 'id',
       headerName: 'ID',
       width: 80,
-      filter: 'agNumberColumnFilter', // Number filter
+      filter: true,
       editable: false,
     },
     {
       field: 'name',
       headerName: 'Product Name',
       flex: 1,
-      filter: 'agTextColumnFilter', // Text filter
+      filter: true,
     },
     {
       field: 'category',
       headerName: 'Category',
-      filter: 'agSetColumnFilter', // Set filter (dropdown)
       width: 150,
+      filter: true,
     },
     {
       field: 'price',
       headerName: 'Price',
       width: 120,
-      filter: 'agNumberColumnFilter', // Number filter
+      filter: true,
       valueFormatter: (params) => {
         return params.value ? `$${params.value.toLocaleString()}` : '';
       },
@@ -56,7 +55,7 @@ const DataGridExample: React.FC = () => {
       field: 'stock',
       headerName: 'Stock',
       width: 120,
-      filter: 'agNumberColumnFilter', // Number filter
+      filter: true,
     },
   ];
 

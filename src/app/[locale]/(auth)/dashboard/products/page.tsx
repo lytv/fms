@@ -1,15 +1,12 @@
 'use client';
 
-import '@/styles/custom-grid.css';
-
 import { useAuth } from '@clerk/nextjs';
-import type { ColDef } from 'ag-grid-community';
 import { useTranslations } from 'next-intl';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import type { Product, ProductUpdate } from '@/app/[locale]/(auth)/api/products/schemas';
-import { DataGrid } from '@/components/data-grid/DataGrid';
+import { type ColumnDef, DataGrid } from '@/components/data-grid/DataGrid';
 import { DeleteConfirmationDialog } from '@/components/products/DeleteConfirmationDialog';
 import { ProductForm } from '@/components/products/ProductForm';
 import { TitleBar } from '@/features/dashboard/TitleBar';
@@ -33,44 +30,44 @@ export default function ProductsPage() {
   });
 
   // Column definitions for the DataGrid
-  const columnDefs = useMemo<ColDef[]>(
+  const columnDefs = useMemo<ColumnDef[]>(
     () => [
       {
         field: 'id',
         headerName: t('id'),
         width: 80,
-        sort: 'asc',
-        filter: 'agNumberColumnFilter',
+        sortable: true,
+        filter: true,
       },
       {
         field: 'maHang',
         headerName: t('product_code'),
         minWidth: 150,
-        filter: 'agTextColumnFilter',
+        filter: true,
       },
       {
         field: 'tenHang',
         headerName: t('product_name'),
         minWidth: 200,
-        filter: 'agTextColumnFilter',
+        filter: true,
       },
       {
         field: 'nhomHang',
         headerName: t('product_category'),
         minWidth: 150,
-        filter: 'agTextColumnFilter',
+        filter: true,
       },
       {
         field: 'vietTat',
         headerName: t('product_abbreviation'),
         minWidth: 140,
-        filter: 'agTextColumnFilter',
+        filter: true,
       },
       {
         field: 'ghiChu',
         headerName: t('product_notes'),
         minWidth: 200,
-        filter: 'agTextColumnFilter',
+        filter: true,
       },
       {
         field: 'ngayTao',
@@ -82,7 +79,7 @@ export default function ProductsPage() {
           }
           return new Date(params.value).toLocaleString();
         },
-        filter: 'agDateColumnFilter',
+        filter: true,
       },
       {
         field: 'ngayCapNhat',
@@ -94,7 +91,7 @@ export default function ProductsPage() {
           }
           return new Date(params.value).toLocaleString();
         },
-        filter: 'agDateColumnFilter',
+        filter: true,
       },
     ],
     [t],

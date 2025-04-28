@@ -1,10 +1,6 @@
-import 'ag-grid-community/styles/ag-grid.css';
-import 'ag-grid-community/styles/ag-theme-alpine.css';
-
-import type { ColDef, GridApi, GridOptions, GridReadyEvent } from 'ag-grid-community';
-import { ClientSideRowModelModule, ModuleRegistry } from 'ag-grid-community';
-import { AgGridReact } from 'ag-grid-react';
 import {
+  ChevronDown,
+  ChevronUp,
   Download,
   Eye,
   EyeOff,
@@ -14,32 +10,123 @@ import {
   Trash,
   Upload,
 } from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
 
-import { ActionsCellRenderer } from '@/components/data-grid/ActionsCellRenderer';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { cn } from '@/utils/Helpers';
 
-// Register the ClientSideRowModelModule
-ModuleRegistry.registerModules([ClientSideRowModelModule]);
+// Helper components
+const ActionsRenderer: React.FC<any> = ({ data, onEdit, onDelete }) => {
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onEdit) {
+      onEdit(data);
+    }
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onDelete) {
+      onDelete(data);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      {onEdit && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-8 p-0"
+          onClick={handleEdit}
+          title="Edit"
+        >
+          <FileEdit className="size-4" />
+        </Button>
+      )}
+      {onDelete && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-8 p-0 text-red-500 hover:bg-red-50 hover:text-red-600"
+          onClick={handleDelete}
+          title="Delete"
+        >
+          <Trash className="size-4" />
+        </Button>
+      )}
+    </div>
+  );
+};
+
+const CellRenderer: React.FC<{ value: any }> = ({ value }) => {
+  if (value === undefined || value === null) {
+    return <></>;
+  }
+
+  if (typeof value === 'boolean') {
+    return <>{value ? 'Yes' : 'No'}</>;
+  }
+
+  if (typeof value === 'number') {
+    if (Number.isNaN(value)) {
+      return <></>;
+    }
+    return <>{value.toLocaleString()}</>;
+  }
+
+  if (value instanceof Date) {
+    return <>{value.toLocaleDateString()}</>;
+  }
+
+  return <>{value.toString()}</>;
+};
+
+export type ColumnDef = {
+  field: string;
+  headerName?: string;
+  width?: number;
+  minWidth?: number;
+  maxWidth?: number;
+  flex?: number;
+  editable?: boolean;
+  sortable?: boolean;
+  filter?: boolean;
+  resizable?: boolean;
+  floatingFilter?: boolean;
+  cellRenderer?: React.FC<any>;
+  cellRendererParams?: Record<string, any>;
+  valueFormatter?: (params: { value: any }) => string;
+  hide?: boolean;
+};
 
 export type DataGridProps = {
   initialData: Record<string, any>[];
-  columnDefs?: ColDef[];
-  defaultColDef?: ColDef;
+  columnDefs?: ColumnDef[];
+  defaultColDef?: Partial<ColumnDef>;
   onDataChange?: (data: Record<string, any>[]) => void;
   onColumnVisibilityChange?: (visibility: Record<string, boolean>) => void;
   showToolbar?: boolean;
   exportFileName?: string;
   className?: string;
-  gridOptions?: GridOptions;
+  gridOptions?: any;
   onRowSelected?: (data: Record<string, any>) => void;
   onAddClick?: () => void;
   onEditClick?: (data: Record<string, any>) => void;
@@ -48,27 +135,26 @@ export type DataGridProps = {
   isLoading?: boolean;
 };
 
-// Define default column definition outside component to avoid re-creation
-const DEFAULT_COL_DEF = {
+// Define default column definition
+const DEFAULT_COL_DEF: Partial<ColumnDef> = {
   flex: 1,
   minWidth: 100,
   editable: false,
   sortable: true,
   filter: true,
   resizable: true,
-  floatingFilter: true, // Enable floating filters for all columns
+  floatingFilter: true,
 };
 
 export const DataGrid: React.FC<DataGridProps> = ({
   initialData,
   columnDefs: inputColumnDefs,
-  defaultColDef = DEFAULT_COL_DEF,
+  defaultColDef: _defaultColDef = DEFAULT_COL_DEF,
   onDataChange,
   onColumnVisibilityChange,
   showToolbar = true,
   exportFileName = 'data-export.xlsx',
   className,
-  gridOptions,
   onRowSelected,
   onAddClick,
   onEditClick,
@@ -76,15 +162,22 @@ export const DataGrid: React.FC<DataGridProps> = ({
   onRefreshClick,
   isLoading = false,
 }) => {
-  const gridRef = useRef<AgGridReact>(null);
-  const [gridApi, setGridApi] = useState<GridApi | null>(null);
   const [selectedRows, setSelectedRows] = useState<Record<string, any>[]>([]);
   const [rowData, setRowData] = useState<Record<string, any>[]>(initialData);
+  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({});
+  const [sortConfig, setSortConfig] = useState<{ key: string | null; direction: 'ascending' | 'descending' | null }>({
+    key: null,
+    direction: null,
+  });
+  const [filterValues, setFilterValues] = useState<Record<string, string>>({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 10;
+  const emptyArray: ColumnDef[] = [];
 
   // Add action column to columnDefs if onEditClick or onDeleteClick are provided
   const columnDefs = useMemo(() => {
-    if (!inputColumnDefs) {
-      return [];
+    if (!inputColumnDefs || inputColumnDefs.length === 0) {
+      return emptyArray;
     }
 
     if (onEditClick || onDeleteClick) {
@@ -101,7 +194,7 @@ export const DataGrid: React.FC<DataGridProps> = ({
             sortable: false,
             editable: false,
             floatingFilter: false,
-            cellRenderer: ActionsCellRenderer,
+            cellRenderer: ActionsRenderer,
             cellRendererParams: {
               onEdit: onEditClick,
               onDelete: (data: Record<string, any>) => {
@@ -120,43 +213,81 @@ export const DataGrid: React.FC<DataGridProps> = ({
     return inputColumnDefs;
   }, [inputColumnDefs, onEditClick, onDeleteClick]);
 
+  // Initialize column visibility
+  useEffect(() => {
+    const initialVisibility: Record<string, boolean> = {};
+    columnDefs.forEach((col) => {
+      initialVisibility[col.field] = col.hide !== true;
+    });
+    setColumnVisibility(initialVisibility);
+  }, [columnDefs]);
+
   useEffect(() => {
     setRowData(initialData);
   }, [initialData]);
 
-  const handleGridReady = useCallback((params: GridReadyEvent) => {
-    setGridApi(params.api);
-    params.api.sizeColumnsToFit();
-  }, []);
+  // Apply filters to data
+  const filteredData = useMemo(() => {
+    return rowData.filter((row) => {
+      return Object.entries(filterValues).every(([field, filterValue]) => {
+        if (!filterValue) {
+          return true;
+        }
 
-  const handleSelectionChanged = useCallback(() => {
-    if (gridApi) {
-      const selectedRows = gridApi.getSelectedRows();
-      setSelectedRows(selectedRows);
-      if (selectedRows.length === 1 && onRowSelected) {
-        onRowSelected(selectedRows[0]);
-      }
+        const value = row[field];
+        if (value === undefined || value === null) {
+          return false;
+        }
+
+        return String(value).toLowerCase().includes(filterValue.toLowerCase());
+      });
+    });
+  }, [rowData, filterValues]);
+
+  // Apply sorting to filtered data
+  const sortedData = useMemo(() => {
+    if (!sortConfig.key || !sortConfig.direction) {
+      return filteredData;
     }
-  }, [gridApi, onRowSelected]);
+
+    return [...filteredData].sort((a, b) => {
+      if (a[sortConfig.key!] === b[sortConfig.key!]) {
+        return 0;
+      }
+
+      if (sortConfig.direction === 'ascending') {
+        return a[sortConfig.key!] < b[sortConfig.key!] ? -1 : 1;
+      } else {
+        return a[sortConfig.key!] > b[sortConfig.key!] ? -1 : 1;
+      }
+    });
+  }, [filteredData, sortConfig]);
+
+  // Pagination
+  const paginatedData = useMemo(() => {
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    return sortedData.slice(startIndex, startIndex + rowsPerPage);
+  }, [sortedData, currentPage, rowsPerPage]);
+
+  const totalPages = Math.ceil(sortedData.length / rowsPerPage);
 
   const handleExportExcel = useCallback(() => {
-    if (!gridApi) {
-      return;
-    }
-
-    // Prepare export data from selected rows or all visible rows
-    const exportData: Record<string, any>[] = [];
-    gridApi.forEachNodeAfterFilterAndSort((node: any) => {
-      if (node.data) {
-        exportData.push(node.data);
-      }
+    // Prepare export data from all visible rows after filtering
+    const exportData = filteredData.map((row) => {
+      const rowData: Record<string, any> = {};
+      columnDefs.forEach((col) => {
+        if (columnVisibility[col.field]) {
+          rowData[col.field] = row[col.field];
+        }
+      });
+      return rowData;
     });
 
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Data');
     XLSX.writeFile(workbook, exportFileName);
-  }, [gridApi, exportFileName]);
+  }, [columnDefs, columnVisibility, exportFileName, filteredData]);
 
   const handleImportExcel = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -200,55 +331,69 @@ export const DataGrid: React.FC<DataGridProps> = ({
     [onDataChange],
   );
 
-  const handleColumnsVisibilityChange = useCallback(() => {
-    if (!gridApi) {
-      return;
-    }
+  const toggleColumnVisibility = useCallback((colId: string) => {
+    setColumnVisibility((prev) => {
+      const newVisibility = {
+        ...prev,
+        [colId]: !prev[colId],
+      };
 
-    const columns = gridApi.getColumns();
-    if (!columns) {
-      return;
-    }
+      if (onColumnVisibilityChange) {
+        onColumnVisibilityChange(newVisibility);
+      }
 
-    const visibility: Record<string, boolean> = {};
-    columns.forEach((column) => {
-      visibility[column.getColId()] = column.isVisible();
+      return newVisibility;
     });
+  }, [onColumnVisibilityChange]);
 
-    if (onColumnVisibilityChange) {
-      onColumnVisibilityChange(visibility);
-    }
-  }, [gridApi, onColumnVisibilityChange]);
-
-  const toggleColumnVisibility = useCallback(
-    (colId: string) => {
-      if (!gridApi) {
-        return;
+  const handleRowSelection = useCallback((row: Record<string, any>, isSelected: boolean) => {
+    setSelectedRows((prev) => {
+      if (isSelected) {
+        // Add row to selection if not already present
+        if (!prev.includes(row)) {
+          const newSelection = [...prev, row];
+          if (newSelection.length === 1 && onRowSelected) {
+            const selectedRow = newSelection[0]!;
+            onRowSelected(selectedRow);
+          }
+          return newSelection;
+        }
+      } else {
+        // Remove row from selection
+        return prev.filter(item => item !== row);
       }
+      return prev;
+    });
+  }, [onRowSelected]);
 
-      const column = gridApi.getColumn(colId);
-      if (column) {
-        const isVisible = column.isVisible();
-        gridApi.setColumnsVisible([colId], !isVisible);
-        handleColumnsVisibilityChange();
+  const isRowSelected = useCallback((row: Record<string, any>) => {
+    return selectedRows.includes(row);
+  }, [selectedRows]);
+
+  // Sorting logic
+  const requestSort = useCallback((key: string) => {
+    setSortConfig((prevSortConfig) => {
+      if (prevSortConfig.key === key) {
+        if (prevSortConfig.direction === 'ascending') {
+          return { key, direction: 'descending' };
+        } else if (prevSortConfig.direction === 'descending') {
+          return { key: null, direction: null };
+        } else {
+          return { key, direction: 'ascending' };
+        }
       }
-    },
-    [gridApi, handleColumnsVisibilityChange],
-  );
+      return { key, direction: 'ascending' };
+    });
+  }, []);
 
-  const gridOptionsWithDefaults = useMemo<GridOptions>(
-    () => ({
-      rowSelection: 'multiple',
-      animateRows: true,
-      pagination: true,
-      paginationPageSize: 10,
-      theme: 'legacy', // Use legacy theme to maintain compatibility with existing CSS
-      modules: [ClientSideRowModelModule],
-      ...gridOptions,
-      onSelectionChanged: handleSelectionChanged,
-    }),
-    [gridOptions, handleSelectionChanged],
-  );
+  // Handle filter change
+  const handleFilterChange = useCallback((field: string, value: string) => {
+    setFilterValues(prev => ({
+      ...prev,
+      [field]: value,
+    }));
+    setCurrentPage(1); // Reset to first page when filter changes
+  }, []);
 
   return (
     <div className={cn('flex flex-col', className)}>
@@ -317,21 +462,18 @@ export const DataGrid: React.FC<DataGridProps> = ({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="max-h-60 overflow-y-auto">
-                {gridApi
-                && gridApi.getColumns()
-                  ?.filter(col => col.getColDef().headerName)
-                  .map(column => (
-                    <DropdownMenuItem
-                      key={column.getColId()}
-                      onClick={() => toggleColumnVisibility(column.getColId())}
-                      className="flex items-center gap-2"
-                    >
-                      {column.isVisible()
-                        ? <Eye className="size-4" />
-                        : <EyeOff className="size-4" />}
-                      {column.getColDef().headerName}
-                    </DropdownMenuItem>
-                  ))}
+                {columnDefs.filter(col => col.headerName).map(column => (
+                  <DropdownMenuItem
+                    key={column.field}
+                    onClick={() => toggleColumnVisibility(column.field)}
+                    className="flex items-center gap-2"
+                  >
+                    {columnVisibility[column.field]
+                      ? <Eye className="size-4" />
+                      : <EyeOff className="size-4" />}
+                    {column.headerName}
+                  </DropdownMenuItem>
+                ))}
               </DropdownMenuContent>
             </DropdownMenu>
             <Button
@@ -371,44 +513,202 @@ export const DataGrid: React.FC<DataGridProps> = ({
       )}
       <div
         className={cn(
-          'ag-theme-alpine h-[500px] w-full rounded-md border shadow-sm',
+          'h-[500px] w-full rounded-md border shadow-sm overflow-auto',
           {
             'opacity-50': isLoading,
           },
         )}
       >
-        <AgGridReact
-          ref={gridRef}
-          rowData={rowData}
-          columnDefs={columnDefs}
-          defaultColDef={defaultColDef}
-          onGridReady={handleGridReady}
-          {...gridOptionsWithDefaults}
-        />
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[50px] p-2">
+                <Checkbox
+                  checked={selectedRows.length > 0 && selectedRows.length === paginatedData.length}
+                  onCheckedChange={(checked: boolean | 'indeterminate') => {
+                    if (checked === true) {
+                      setSelectedRows(paginatedData);
+                      if (paginatedData.length === 1 && onRowSelected && paginatedData[0]) {
+                        const selectedRow = paginatedData[0]!;
+                        onRowSelected(selectedRow);
+                      }
+                    } else {
+                      setSelectedRows([]);
+                    }
+                  }}
+                />
+              </TableHead>
+              {columnDefs.map(column => (
+                columnVisibility[column.field] && (
+                  <TableHead
+                    key={column.field}
+                    style={{
+                      minWidth: column.minWidth,
+                      maxWidth: column.maxWidth,
+                      width: column.width,
+                    }}
+                  >
+                    <div className="flex flex-col space-y-1">
+                      <div
+                        className={cn('flex items-center', {
+                          'cursor-pointer select-none': column.sortable,
+                        })}
+                        onClick={() => {
+                          if (column.sortable) {
+                            requestSort(column.field);
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (column.sortable && (e.key === 'Enter' || e.key === ' ')) {
+                            requestSort(column.field);
+                          }
+                        }}
+                        role={column.sortable ? 'button' : undefined}
+                        tabIndex={column.sortable ? 0 : undefined}
+                      >
+                        {column.headerName || column.field}
+                        {column.sortable && (
+                          <div className="ml-1">
+                            {sortConfig.key === column.field
+                              ? (
+                                  sortConfig.direction === 'ascending'
+                                    ? (
+                                        <ChevronUp className="size-3" />
+                                      )
+                                    : (
+                                        <ChevronDown className="size-3" />
+                                      )
+                                )
+                              : null}
+                          </div>
+                        )}
+                      </div>
+                      {column.filter && (
+                        <Input
+                          placeholder={`Filter ${column.headerName || column.field}`}
+                          value={filterValues[column.field] || ''}
+                          onChange={e => handleFilterChange(column.field, e.target.value)}
+                          className="h-7 text-xs"
+                        />
+                      )}
+                    </div>
+                  </TableHead>
+                )
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {paginatedData.length > 0
+              ? (
+                  paginatedData.map((row, rowIndex) => (
+                    <TableRow
+                      key={rowIndex}
+                      className={cn({
+                        'bg-muted/50': isRowSelected(row),
+                      })}
+                    >
+                      <TableCell className="p-2">
+                        <Checkbox
+                          checked={isRowSelected(row)}
+                          onCheckedChange={(checked: boolean | 'indeterminate') => {
+                            handleRowSelection(row, checked === true);
+                          }}
+                        />
+                      </TableCell>
+                      {columnDefs.map(column => (
+                        columnVisibility[column.field] && (
+                          <TableCell key={`${rowIndex}-${column.field}`}>
+                            {column.cellRenderer
+                              ? (
+                                  <column.cellRenderer
+                                    data={row}
+                                    value={row[column.field]}
+                                    {...column.cellRendererParams}
+                                  />
+                                )
+                              : column.valueFormatter
+                                ? (
+                                    column.valueFormatter({ value: row[column.field] })
+                                  )
+                                : (
+                                    <CellRenderer value={row[column.field]} />
+                                  )}
+                          </TableCell>
+                        )
+                      ))}
+                    </TableRow>
+                  ))
+                )
+              : (
+                  <TableRow>
+                    <TableCell colSpan={columnDefs.filter(col => columnVisibility[col.field]).length + 1} className="h-24 text-center">
+                      No results.
+                    </TableCell>
+                  </TableRow>
+                )}
+          </TableBody>
+        </Table>
       </div>
+      {totalPages > 1 && (
+        <div className="mt-2 flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            Showing
+            {' '}
+            {(currentPage - 1) * rowsPerPage + 1}
+            {' '}
+            to
+            {' '}
+            {Math.min(currentPage * rowsPerPage, sortedData.length)}
+            {' '}
+            of
+            {' '}
+            {sortedData.length}
+            {' '}
+            entries
+          </div>
+          <div className="flex gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              let pageNumber: number;
+              if (totalPages <= 5) {
+                pageNumber = i + 1;
+              } else if (currentPage <= 3) {
+                pageNumber = i + 1;
+              } else if (currentPage >= totalPages - 2) {
+                pageNumber = totalPages - 4 + i;
+              } else {
+                pageNumber = currentPage - 2 + i;
+              }
+
+              return (
+                <Button
+                  key={pageNumber}
+                  variant={currentPage === pageNumber ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setCurrentPage(pageNumber)}
+                >
+                  {pageNumber}
+                </Button>
+              );
+            })}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
-};
-
-export const AutoDetectRenderer = (params: any) => {
-  if (params.value === undefined || params.value === null) {
-    return '';
-  }
-
-  if (typeof params.value === 'boolean') {
-    return params.value ? 'Yes' : 'No';
-  }
-
-  if (typeof params.value === 'number') {
-    if (Number.isNaN(params.value)) {
-      return '';
-    }
-    return params.value.toLocaleString();
-  }
-
-  if (params.value instanceof Date) {
-    return params.value.toLocaleDateString();
-  }
-
-  return params.value.toString();
 };
