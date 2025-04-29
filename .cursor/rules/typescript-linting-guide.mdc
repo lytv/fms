@@ -1,5 +1,5 @@
 ---
-description:
+description: TypeScript Linting and Type Safety Guidelines
 globs:
 alwaysApply: false
 ---

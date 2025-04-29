@@ -1,5 +1,5 @@
 ---
-description: Cursor Rules cho dự án
+description: 1k LOC rule.
 globs: 
 alwaysApply: false
 ---

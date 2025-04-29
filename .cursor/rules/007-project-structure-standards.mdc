@@ -1,0 +1,104 @@
+# Project Structure Standards
+
+## Context
+- When creating new files or components
+- When relocating existing files 
+- When organizing code structure
+- When determining where to place business logic
+
+## Directory Structure Requirements
+
+### Root Configuration Files
+- `package.json`: Dependencies, scripts, and project metadata
+- `tailwind.config.js`: Tailwind CSS configuration
+- `tsconfig.json`: TypeScript compiler configuration
+- `.env` & `.env.local`: Environment variables
+- `next.config.mjs`: Next.js configuration
+
+### Development Tools
+- `.github/`: CI/CD workflows
+- `.husky/`: Git hooks
+- `.storybook/`: Storybook configuration
+- `.vscode/`: VSCode settings and configurations
+- `.cursor/rules/`: Project rules and standards
+
+### Main Source Code (`src/`)
+- `app/`: Next.js App Router components and routes
+- `components/`: Reusable UI components (not tied to specific features)
+- `features/`: Feature-specific components
+- `libs/`: Third-party library configurations
+- `locales/`: Internationalization translation files
+- `models/`: Database models and schema definitions
+- `styles/`: Global CSS and Tailwind utilities
+- `templates/`: Page layout templates
+- `types/`: TypeScript type definitions
+- `utils/`: Utility functions and app-wide configurations
+
+### Supporting Directories
+- `migrations/`: Database migration files
+- `public/`: Static assets
+- `tests/`: Test files (e2e, integration)
+- `scripts/`: Utility scripts
+
+## File Placement Guidelines
+
+### Component Placement
+- **General components**: Place in `src/components/` if used across multiple features
+- **Feature-specific components**: Place in `src/features/{feature-name}/`
+- **Page components**: Place in `src/app/` following Next.js App Router structure
+
+### Business Logic
+- **Database models**: Place in `src/models/`
+- **API endpoints**: Place in `src/app/api/` following Next.js App Router
+- **Service functions**: Place in `src/features/{feature-name}/services/` or `src/utils/`
+
+### Configuration
+- **Third-party services**: Place in `src/libs/`
+- **App-wide config**: Place in `src/utils/AppConfig.ts`
+
+## Examples
+
+<example>
+# Good: Feature-specific component
+src/features/dashboard/components/ActivityChart.tsx
+
+# Good: Reusable UI component
+src/components/ui/Button.tsx
+
+# Good: Page component
+src/app/dashboard/page.tsx
+
+# Good: Database model
+src/models/Schema.ts
+
+# Good: API route
+src/app/api/users/route.ts
+
+# Good: Configuration
+src/libs/auth.ts
+</example>
+
+<example type="invalid">
+# Bad: Feature component in wrong location
+src/components/DashboardActivityChart.tsx (Should be in features/dashboard/components/)
+
+# Bad: Reusable component in feature directory
+src/features/dashboard/components/Button.tsx (Should be in components/ui/)
+
+# Bad: Database model in wrong location
+src/utils/schema.ts (Should be in models/)
+
+# Bad: Config file in wrong location
+src/features/auth/authConfig.ts (Should be in libs/)
+</example>
+
+## Critical Rules
+- Always place files in their designated directories based on their purpose
+- Keep feature-specific code within feature directories
+- Place reusable components in the components directory
+- Follow Next.js App Router conventions for page and API routes
+- Maintain separation between UI components and business logic
+- Place database models in the models directory
+- Store configuration in the appropriate locations (libs or utils/AppConfig.ts)
+
+WHENEVER YOU USE THIS RULE, START YOUR MESSAGE WITH THIS RULE NAME.

@@ -42,6 +42,25 @@ Guidelines for creating and managing task lists in markdown files to track proje
    
    - path/to/file1.ts - Description of purpose
    - path/to/file2.ts - Description of purpose
+   
+   ## Type Checking and Linting
+   
+   Static analysis tools ensure code quality before tests run:
+   
+   ### Type Checking
+   TypeScript provides static type checking to catch type errors before runtime:
+   
+   ```bash
+   npm run check-types
+   ```
+   
+   ### Linting
+   ESLint enforces code style and best practices:
+   
+   ```bash
+   npm run lint       # Check for issues
+   npm run lint:fix   # Fix automatically fixable issues
+   ```
    ```
 
 ## Task List Maintenance
@@ -62,6 +81,8 @@ Guidelines for creating and managing task lists in markdown files to track proje
    - Technical components needed
    - Environment configuration
 
+4. Always include the "Type Checking and Linting" section at the end of each task list file.
+
 ## AI Instructions
 
 When working with task lists, the AI should:
@@ -73,24 +94,11 @@ When working with task lists, the AI should:
 5. Document implementation details, especially for complex features
 6. When implementing tasks one by one, first check which task to implement next
 7. After implementing a task, update the file to reflect progress
+8. Always ensure the "Type Checking and Linting" section is included and executed as the final step
 
 ## Example Task Update
 
 When updating a task from "In Progress" to "Completed":
-
-```markdown
-## In Progress Tasks
-
-- [ ] Implement database schema
-- [ ] Create API endpoints for data access
-
-## Completed Tasks
-
-- [x] Set up project structure
-- [x] Configure environment variables
-```
-
-Should become:
 
 ```markdown
 ## In Progress Tasks
@@ -102,4 +110,28 @@ Should become:
 - [x] Set up project structure
 - [x] Configure environment variables
 - [x] Implement database schema
+```
+
+## Final Type Checking and Linting Step
+
+Always complete implementation by running type checking and linting:
+
+```markdown
+## Type Checking and Linting
+
+Static analysis tools ensure code quality before tests run:
+
+### Type Checking
+TypeScript provides static type checking to catch type errors before runtime:
+
+```bash
+npm run check-types
+```
+
+### Linting
+ESLint enforces code style and best practices:
+
+```bash
+npm run lint       # Check for issues
+npm run lint:fix   # Fix automatically fixable issues
 ```
