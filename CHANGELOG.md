@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/lytv/fms/compare/v1.0.0...v1.1.0) (2025-04-29)
+
+
+### Features
+
+* **add pin :** add rules ([18e3ab0](https://github.com/lytv/fms/commit/18e3ab0d492db1e5838fa4abeca318ae92fab457))
+
 # 1.0.0 (2025-04-28)
 
 
